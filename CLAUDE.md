@@ -16,6 +16,7 @@ See `references/context.md` for full work context: name, role, team structure, t
 |-------|---------|
 | `slack-reply-triage` | Check Slack, triage messages, catch up on mentions, draft replies, "what do I need to respond to" |
 | `one-on-one-prep` | Prep for a 1:1, create meeting notes, "get ready for my meeting with [name]" |
+| `daily-briefing` | Morning brief, "brief me", "what's my day", "catch me up", "what's happening today" |
 
 ## MCP Integrations
 

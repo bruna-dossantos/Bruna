@@ -31,14 +31,14 @@ Create a properly structured 1:1 meeting note in Notion, linked to the correct P
 | Sean Becker | `user://2cad872b-594c-81a4-9e57-000220c05282` | `U0A3FU6KZM1` | `sean.becker@tennr.com` | `https://www.notion.so/313eb680c7fc81ca836be5580cbe39c1` | ✅ Yes |
 | Rachel Duda | `user://262d872b-594c-812a-9d88-0002c08d7f89` | `U09D4GEFM0W` | `rachel.duda@tennr.com` | `https://www.notion.so/313eb680c7fc81169252f2a4c60742ad` | ✅ Yes |
 | Stacey Wisniewski | `user://211d872b-594c-8135-9ea9-00028434b8a2` | `U090Y68BYP9` | `stacey.wisniewski@tennr.com` | `https://www.notion.so/313eb680c7fc81eb95ecc36e2c623be3` | ✅ Yes |
-| Tess L'Olivier-Lam | look up | `U0AFDAK96KU` | `tess@tennr.com` | `https://www.notion.so/313eb680c7fc8145b058c6165e3f9818` | ✅ Yes |
+| Tess L'Olivier-Lam | `user://30ad872b-594c-8141-ab3d-000240dd84ad` | `U0AFDAK96KU` | `tess@tennr.com` | `https://www.notion.so/313eb680c7fc8145b058c6165e3f9818` | ✅ Yes |
 | Sen Zhang | `user://248d872b-594c-8103-9a2b-00027210e5a9` | `U099JTADQ4C` | `sen@tennr.com` | `https://www.notion.so/313eb680c7fc81f1b9e5e0a86210b731` | No (manager) |
-| Jackson Wood | look up | look up | `jackson@tennr.com` (likely) | `https://www.notion.so/313eb680c7fc81379cbad59013010181` | No |
-| Matt Dillabough | look up | look up | `matt@tennr.com` (likely) | `https://www.notion.so/313eb680c7fc814a9332cb2e2e7eb7b4` | No |
-| Genevieve Payzer | look up | look up | `genevieve@tennr.com` (likely) | `https://www.notion.so/313eb680c7fc8117bbfce755359b72b4` | No |
-| Claire North | look up | look up | `claire@tennr.com` (likely) | `https://www.notion.so/313eb680c7fc810d9e6bfd32a6065807` | No |
-| Saranga Arora | look up | look up | `saranga@tennr.com` (likely) | `https://www.notion.so/313eb680c7fc814585f4df788bdd560e` | No |
-| Jasper Wu | look up | look up | `jasper.wu@tennr.com` | `https://www.notion.so/313eb680c7fc811ebb2ad257856f9c88` | No |
+| Jackson Wood | `user://2bd99796-7e01-4d27-aefa-58332e516f0f` | `U06DRBWGK7A` | `jackson@tennr.com` | `https://www.notion.so/313eb680c7fc81379cbad59013010181` | No |
+| Matt Dillabough | `user://742d1b2b-6f8e-400b-bd11-1b95884b97a8` | `U05AMMD3C1J` | `matt@tennr.com` | `https://www.notion.so/313eb680c7fc814a9332cb2e2e7eb7b4` | No |
+| Genevieve Payzer | `user://24cd872b-594c-8198-bed1-0002702c92c4` | `U099RU2SQHK` | `genevieve@tennr.com` | `https://www.notion.so/313eb680c7fc8117bbfce755359b72b4` | No |
+| Claire North | `user://1f4d872b-594c-8158-b9da-0002b1f5beb2` | `U08SCTK6CMR` | `claire@tennr.com` | `https://www.notion.so/313eb680c7fc810d9e6bfd32a6065807` | No |
+| Saranga Arora | `user://245d872b-594c-81c9-8f2c-0002e95c14ed` | `U098SE7MY74` | `saranga@tennr.com` | `https://www.notion.so/313eb680c7fc814585f4df788bdd560e` | No |
+| Jasper Wu | `user://231d872b-594c-8147-af80-0002e4d51153` | `U095VGX4BV0` | `jasper.wu@tennr.com` | `https://www.notion.so/313eb680c7fc811ebb2ad257856f9c88` | No |
 
 **Bruna's Slack ID:** `U08H0TF168L`
 

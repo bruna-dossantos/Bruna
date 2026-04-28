@@ -6,6 +6,9 @@ Reads:
   ~/Desktop/Customers/<name>/payor_matches.csv (Payor → Project UUID)
   ~/Desktop/Customers/<name>/code_titles.csv   (Code → Title) — optional
   ~/Desktop/Customers/<name>/customer_config.json
+  ~/Desktop/Customers/<name>/existing_parents.csv — optional but RECOMMENDED;
+       produced by check_existing_tickets.py. Rows with (Project UUID, Code)
+       in this file are dropped from the plan to avoid duplicate parents.
   ~/Desktop/Linear Master Data/<team>_team_labels.csv
   ~/Desktop/Linear Master Data/workflow_states.csv
 
@@ -16,6 +19,10 @@ Fields written:
   Matched Project, Project UUID, Code, Title, Payor Label UUIDs (pipe),
   Service Line, Service Line UUID, Total Volume, Priority, State UUID,
   Team UUID, Estimate
+
+Title format:
+  "<HCPCS> - <Description>"  (e.g. "A4351 - Indwelling Catheter")
+  Falls back to just "<HCPCS>" when code_titles.csv has no description.
 
 Priority is assigned by volume quartile across the whole dataset:
   >= Q3 -> 1 (Urgent), >= Q2 -> 2 (High), >= Q1 -> 3 (Normal), else 4 (Low)
@@ -67,6 +74,34 @@ def load_titles(cdir):
             for r in csv.DictReader(open(path))}
 
 
+def load_existing_parents(cdir):
+    """{(Project UUID, Code) → Issue UUID} for parents that already
+    exist in Linear. Empty dict if check_existing_tickets.py wasn't run
+    yet."""
+    path = os.path.join(cdir, "existing_parents.csv")
+    if not os.path.exists(path):
+        return {}
+    out = {}
+    with open(path) as f:
+        for r in csv.DictReader(f):
+            puuid = r.get("Project UUID", "").strip()
+            code  = r.get("Code", "").strip()
+            iuuid = r.get("Issue UUID", "").strip()
+            if puuid and code:
+                out[(puuid, code)] = iuuid
+    return out
+
+
+def make_title(code, desc):
+    """Convention: '<HCPCS> - <Description>'. Falls back to just the
+    code when no description is on hand."""
+    code = (code or "").strip()
+    desc = (desc or "").strip()
+    if code and desc:
+        return f"{code} - {desc}"
+    return code or desc
+
+
 def state_uuid_for(team_name, state_name="Not Started"):
     with open(workflow_states_path()) as f:
         for r in csv.DictReader(f):
@@ -99,7 +134,18 @@ def main():
     team_labels = load_team_labels(team)
     payor_match = load_payor_matches(cdir)
     titles      = load_titles(cdir)
+    existing    = load_existing_parents(cdir)
     state_id, team_uuid = state_uuid_for(team_full_name)
+
+    if existing:
+        print(f"loaded {len(existing)} existing parents from "
+              f"existing_parents.csv — those (project, code) pairs will "
+              f"be skipped", file=sys.stderr)
+    else:
+        print(f"⚠ no existing_parents.csv found — run "
+              f"check_existing_tickets.py first to dedup against parents "
+              f"already in Linear, otherwise you may create duplicates",
+              file=sys.stderr)
 
     # 1. Aggregate (Project UUID, Code) -> volume + raw rows
     agg = {}
@@ -147,12 +193,17 @@ def main():
     print(f"volume quartiles: Q1={q1:.0f}  Q2={q2:.0f}  Q3={q3:.0f}",
           file=sys.stderr)
 
-    # 3. Resolve labels + emit
+    # 3. Resolve labels + emit (skipping rows that already exist in Linear)
     missing_payor_labels = set()
     missing_sl_labels    = set()
     out_rows = []
+    skipped_existing = 0
     for r in rows:
         proj_name = r["matched"]
+        key = (r["project_uuid"], r["code"])
+        if key in existing:
+            skipped_existing += 1
+            continue
         payor_uuid = team_labels.get(proj_name.lower(), "")
         if not payor_uuid:
             missing_payor_labels.add(proj_name)
@@ -161,7 +212,7 @@ def main():
             sl_uuid = team_labels.get(r["service_line"].lower(), "")
             if not sl_uuid:
                 missing_sl_labels.add(r["service_line"])
-        title = titles.get(r["code"]) or r["code"]
+        title = make_title(r["code"], titles.get(r["code"], ""))
         out_rows.append({
             "Matched Project": proj_name,
             "Project UUID":    r["project_uuid"],
@@ -176,6 +227,10 @@ def main():
             "Team UUID":       team_uuid,
             "Estimate":        PARENT_ESTIMATE,
         })
+
+    if skipped_existing:
+        print(f"skipped {skipped_existing} (project, code) parents already "
+              f"in Linear", file=sys.stderr)
 
     if missing_payor_labels or missing_sl_labels:
         print("\n⚠ MISSING LABELS — refusing to write plan.\n", file=sys.stderr)

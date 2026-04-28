@@ -6,6 +6,7 @@
     "scripts/_lib.py",
     "scripts/refresh_linear_data.py",
     "scripts/match_payors.py",
+    "scripts/check_existing_tickets.py",
     "scripts/build_parent_plan.py",
     "scripts/create_parent_tickets.py",
     "scripts/create_customer_tickets.py",

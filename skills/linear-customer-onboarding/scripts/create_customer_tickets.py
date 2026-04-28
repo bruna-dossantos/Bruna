@@ -17,9 +17,14 @@ Each customer ticket:
   - lives in cfg["customer_project_id"]
   - has parentId = matching parent ticket UUID
   - carries payor label (DME-team-scoped) + service line label
-  - title = "Cxxxx - <description>"
+  - title = "<HCPCS> - <description>"  (e.g. "A4351 - Indwelling Catheter")
 
-Resumable, dedup key = (Project UUID, Parent UUID, Code, CSV Payor).
+Resumable, local dedup key = (Project UUID, Parent UUID, Code, CSV Payor).
+
+Linear-side dedup: if existing_customer_tickets.csv exists (produced by
+check_existing_tickets.py), rows whose (Parent Issue UUID, Code) is
+already in that file are skipped. This catches re-runs after a partial
+crash or accidental re-onboarding of an already-onboarded customer.
 
 Usage:
   python3 create_customer_tickets.py "Comfort Medical"
@@ -56,19 +61,53 @@ def create_issue(payload, token):
 
 
 def load_parent_lookup(cdir):
-    """(Project UUID, Code) → Parent Issue UUID. Includes both freshly
-    created parents and any pre-existing ones the user maps in."""
+    """(Project UUID, Code) → Parent Issue UUID.
+
+    Merges three sources, in order of preference:
+      1. parents_created.csv  — parents this run just created
+      2. existing_parents.csv — parents already in Linear (auto-pulled
+         by check_existing_tickets.py)
+    Either source's UUID is fine; we keep whichever we see first."""
     out = {}
-    for fname, code_col, uuid_col in [
-        ("parents_created.csv", "Code", "Issue UUID"),
-        ("existing_parents.csv", "Code", "Issue UUID"),  # optional
-    ]:
+    for fname in ("parents_created.csv", "existing_parents.csv"):
         path = os.path.join(cdir, fname)
         if not os.path.exists(path):
             continue
         for r in csv.DictReader(open(path)):
-            out[(r["Project UUID"], r[code_col])] = r[uuid_col]
+            puuid = (r.get("Project UUID") or "").strip()
+            code  = (r.get("Code") or "").strip()
+            iuuid = (r.get("Issue UUID") or "").strip()
+            if puuid and code and iuuid:
+                out.setdefault((puuid, code), iuuid)
     return out
+
+
+def load_existing_customer_tickets(cdir):
+    """{(Parent Issue UUID, Code) → Issue UUID} for customer tickets that
+    already exist in Linear (the customer's Qual Criteria project).
+    Empty dict if check_existing_tickets.py wasn't run yet."""
+    path = os.path.join(cdir, "existing_customer_tickets.csv")
+    if not os.path.exists(path):
+        return {}
+    out = {}
+    with open(path) as f:
+        for r in csv.DictReader(f):
+            parent = (r.get("Parent Issue UUID") or "").strip()
+            code   = (r.get("Code") or "").strip()
+            iuuid  = (r.get("Issue UUID") or "").strip()
+            if parent and code:
+                out[(parent, code)] = iuuid
+    return out
+
+
+def make_title(code, desc):
+    """Convention: '<HCPCS> - <Description>'. Falls back to just the
+    code when no description is available."""
+    code = (code or "").strip()
+    desc = (desc or "").strip()
+    if code and desc:
+        return f"{code} - {desc}"
+    return code or desc
 
 
 def load_payor_matches(cdir):
@@ -120,11 +159,18 @@ def main():
     matches = load_payor_matches(cdir)
     titles  = load_titles(cdir)
     labels  = load_team_labels(cfg["team"])
+    existing_cust = load_existing_customer_tickets(cdir)
     state_id, team_uuid = state_uuid_for(team_full)
     cust_proj = cfg["customer_project_id"]
 
     print(f"loaded {len(parents)} parents, {len(matches)} payor matches, "
-          f"{len(labels)} team labels", file=sys.stderr)
+          f"{len(labels)} team labels, {len(existing_cust)} existing "
+          f"customer tickets", file=sys.stderr)
+    if not existing_cust:
+        print(f"⚠ no existing_customer_tickets.csv found — run "
+              f"check_existing_tickets.py first to dedup against tickets "
+              f"already in the customer's Qual Criteria project",
+              file=sys.stderr)
 
     token = get_token()
     tracker = os.path.join(cdir, "customer_tickets_created.csv")
@@ -157,7 +203,7 @@ def main():
     if new:
         w.writeheader(); tf.flush()
 
-    created = skipped = failed = 0
+    created = skipped = skipped_existing = failed = 0
     miss_parent = miss_label = 0
     t0 = time.time()
     for i, r in enumerate(window, 1):
@@ -186,6 +232,11 @@ def main():
         if key in done:
             skipped += 1
             continue
+        # Linear-side dedup: skip if a customer ticket for this parent +
+        # code already exists in the customer's Qual Criteria project.
+        if (parent, code) in existing_cust:
+            skipped_existing += 1
+            continue
 
         payor_label = labels.get(m["matched"].lower(), "")
         sl_label    = labels.get(sl.lower(), "") if sl else ""
@@ -194,7 +245,7 @@ def main():
             print(f"  MISS LABEL [{i}] {m['matched']!r}", file=sys.stderr)
             continue
 
-        title = titles.get(code) or code
+        title = make_title(code, titles.get(code, ""))
         payload = {
             "title":     title,
             "teamId":    team_uuid,
@@ -237,7 +288,8 @@ def main():
 
     tf.close()
     el = time.time() - t0
-    print(f"\nDone. created={created} skipped={skipped} failed={failed} "
+    print(f"\nDone. created={created} skipped={skipped} "
+          f"skipped_existing={skipped_existing} failed={failed} "
           f"miss_parent={miss_parent} miss_label={miss_label} "
           f"elapsed={el/60:.1f}m", file=sys.stderr)
 

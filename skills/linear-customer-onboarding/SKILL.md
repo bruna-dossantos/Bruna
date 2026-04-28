@@ -16,6 +16,18 @@ Migrates a customer's payor coverage spreadsheet into a structured set of Linear
 
 All three operations are resumable, rate-limit-aware, and gated behind human review.
 
+## Ticket title convention
+
+Every parent and customer ticket uses the same title format:
+
+```
+<HCPCS> - <Description>
+```
+
+Examples: `A4351 - Indwelling Catheter`, `J9035 - Bevacizumab Injection`, `E0601 - Continuous Airway Pressure Device`.
+
+When a description isn't available in `code_titles.csv`, the title falls back to just the HCPCS code. Don't mix in payor names or other suffixes — the title is purely about the code, and the payor lives on the labels and the project membership. The pre-flight `check_existing_tickets.py` parses the leading code token from existing titles to dedupe against Linear, so deviating from this format will cause it to miss duplicates.
+
 ## Folder structure (required)
 
 This skill assumes two folder roots on the Desktop. If they don't exist, the first action is to create them (with the user's permission).
@@ -148,7 +160,23 @@ Naming convention — when you have to flag that a Linear project is missing and
 
 Wait for explicit go-ahead before continuing.
 
-### Step 4 — Build the parent ticket plan
+### Step 4 — Pre-flight: check what already exists in Linear
+
+```bash
+python3 ~/.claude/skills/linear-customer-onboarding/scripts/check_existing_tickets.py "<CustomerName>"
+```
+
+**Run this every time before building the plan.** Without it, the build/create scripts have no idea which `(project, code)` parents and which `(parent, code)` customer tickets are already in Linear — so re-running on a partially-onboarded customer (or a customer whose insurance projects already had parents created during another customer's onboarding) silently creates duplicates.
+
+What it does:
+- For every Insurance project listed in `payor_matches.csv`, queries Linear for all top-level issues, parses the leading HCPCS code from each title, and writes `existing_parents.csv`.
+- For the customer's Qual Criteria project, queries every issue with its `parentId`, parses the code, and writes `existing_customer_tickets.csv` (also captures labels so you can spot per-payor conflicts).
+
+Both files key off the leading code token in the title — that's why every ticket must follow the `<HCPCS> - <Description>` convention. A title like `Anthem A4351 catheter` would not be detected and would result in duplicates.
+
+This step takes ~1 query per project + pagination, which on a typical customer is a couple of minutes. Bruna can interrupt if she's confident no parents exist (e.g., brand-new insurance projects), but the default is always run it.
+
+### Step 5 — Build the parent ticket plan
 
 ```bash
 python3 ~/.claude/skills/linear-customer-onboarding/scripts/build_parent_plan.py "<CustomerName>"
@@ -158,8 +186,9 @@ This:
 1. Joins `input.csv` × `payor_matches.csv` × `code_titles.csv`
 2. Resolves payor + service-line label UUIDs from the team-specific labels CSV (case-insensitive name match)
 3. Computes priority by volume quartile across all rows (`≥Q3 → 1`, `≥Q2 → 2`, `≥Q1 → 3`, else `4`)
-4. Dedupes against existing parent tickets in Linear (queries by project + code)
-5. Writes `parent_plan.csv` with one row per parent to be created
+4. **Drops rows whose `(Project UUID, Code)` is already in `existing_parents.csv`** (the file Step 4 produced)
+5. Builds titles in the form `<HCPCS> - <Description>` (or just the HCPCS when description is missing)
+6. Writes `parent_plan.csv` with one row per parent to be created
 
 If any payor labels are missing from the team's labels CSV, the script prints them and exits. Resolve by:
 
@@ -169,15 +198,17 @@ python3 ~/.claude/skills/linear-customer-onboarding/scripts/create_team_label.py
 
 Then re-run `build_parent_plan.py`.
 
+If Step 4 wasn't run, this script prints a warning and proceeds anyway — but expect duplicates downstream.
+
 **CHECKPOINT — show the user:**
 - Total parent tickets to create
 - Breakdown by priority (Urgent/High/Normal/Low)
-- Any duplicates skipped (already exist in Linear)
-- Sample of 3-5 rows for sanity check
+- How many were skipped because they already exist in Linear (from `existing_parents.csv`)
+- Sample of 3-5 rows for sanity check (titles should look like `A4351 - Indwelling Catheter`)
 
 Wait for explicit go-ahead.
 
-### Step 5 — Create parent tickets
+### Step 6 — Create parent tickets
 
 ```bash
 python3 ~/.claude/skills/linear-customer-onboarding/scripts/create_parent_tickets.py "<CustomerName>" --sleep 1.5
@@ -192,18 +223,20 @@ The script:
 
 If Bruna wants to push faster, suggest running multiple windows in parallel (`--start`, `--limit`) — but warn that they share the hourly token budget.
 
-### Step 6 — Create customer tickets
+### Step 7 — Create customer tickets
 
 ```bash
 python3 ~/.claude/skills/linear-customer-onboarding/scripts/create_customer_tickets.py "<CustomerName>" --sleep 1.5
 ```
 
-Identical pattern to step 5. Each ticket:
+Identical pattern to step 6. Each ticket:
 - Lives in the customer's Qual Criteria project (from `customer_config.json`)
-- Has `parentId` pointing at the corresponding parent ticket (looked up from `parents_created.csv` + any pre-existing parents)
+- Has `parentId` pointing at the corresponding parent ticket — resolved from `parents_created.csv` (this run) **or** `existing_parents.csv` (parents already in Linear, from Step 4). This is what lets you onboard a customer against insurance projects that already had parents from a previous customer's onboarding.
 - Carries the customer's CSV Payor label (resolved from team labels) + service line label
+- Title in the form `<HCPCS> - <Description>` (same as the parent)
+- **Skips any row whose `(Parent Issue UUID, Code)` is already in `existing_customer_tickets.csv`** — protects against re-runs and accidental double-onboarding.
 
-### Step 7 — Attach Customer Needs
+### Step 8 — Attach Customer Needs
 
 ```bash
 python3 ~/.claude/skills/linear-customer-onboarding/scripts/create_parent_customer_needs.py "<CustomerName>" --sleep 1.5

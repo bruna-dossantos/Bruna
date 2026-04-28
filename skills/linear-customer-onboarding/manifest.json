@@ -1,0 +1,16 @@
+{
+  "name": "linear-customer-onboarding",
+  "version": "0.1.0",
+  "files": [
+    "SKILL.md",
+    "scripts/_lib.py",
+    "scripts/refresh_linear_data.py",
+    "scripts/match_payors.py",
+    "scripts/build_parent_plan.py",
+    "scripts/create_parent_tickets.py",
+    "scripts/create_customer_tickets.py",
+    "scripts/create_parent_customer_needs.py",
+    "scripts/create_team_label.py",
+    "references/graphql.md"
+  ]
+}

@@ -61,23 +61,38 @@ Reads Linear personal API token from `~/.linear_token` (one line, no prefix). Th
 
 The order matters. Each step has a checkpoint where you stop and let Bruna review before proceeding.
 
-### Step 0 — Confirm the customer
+### Step 0 — Intake interview
 
-Confirm the customer name and folder. If `~/Desktop/Customers/<Name>/` doesn't exist, ask whether to create it. If `input.csv` is missing, stop and tell the user where to drop it.
+Before doing anything else, ask these questions in **one batch** (don't drip them one at a time — Bruna prefers answering everything up front):
 
-### Step 1 — Ensure master data is fresh
+1. **Vertical / team** — DME or Infusion? This picks the Linear team and which `*_team_labels.csv` we read.
+2. **One customer or several?** If several, list them. We'll run the full pipeline serially per customer — each customer fully completes Steps 1–7 before the next one starts. Nothing is shared between customers except the one-time master-data refresh.
+3. **Per customer**, for each one named above:
+   - **Customer name** (exact — this becomes the folder name under `~/Desktop/Customers/` and the project name `Qual Criteria - <Name>`)
+   - **Existing in Linear, or new?**
+     - *Existing*: ask for the Linear Customer UUID and the `Qual Criteria - <Name>` project UUID. (You can offer to look them up via Linear MCP `list_customers` / `list_projects` if Bruna doesn't have them handy.)
+     - *New*: confirm Bruna wants the skill to create the Linear Customer record + the Qual Criteria project automatically (Step 2). Ask for any customer metadata Linear's `save_customer` needs that isn't already obvious from context (e.g., domains, ARR tier, owner) — at minimum the customer name is required.
+   - **Is `input.csv` already in `~/Desktop/Customers/<Name>/`?** If not, ask where it'll come from and don't proceed until it's in place.
 
-Check `~/Desktop/Linear Master Data/refresh_metadata.json`. If it doesn't exist, or the most recent refresh is more than 7 days old, offer to refresh:
+Don't move forward until every answer is in hand. Once intake is complete, **summarize the plan back** and ask for confirmation before starting:
+
+> "I'll run the pipeline for **A**, then **B**, then **C**, on the **DME Criteria** team. A is new (I'll create the Linear Customer + project); B and C exist already. Each one stops at the payor-matching, parent-plan, and final create checkpoints. Confirm?"
+
+Save the intake answers — they drive Step 2 for each customer in the list.
+
+### Step 1 — Refresh master data
 
 ```bash
 python3 ~/.claude/skills/linear-customer-onboarding/scripts/refresh_linear_data.py
 ```
 
-This pulls every label on the DME Criteria + Infusion Criteria teams, every Insurance project, and every workflow state. It's a one-time ~30-second job.
+**Run this every session.** It pulls every label on the DME Criteria + Infusion Criteria teams, every Insurance project, and every workflow state. ~10 seconds, ~5–10 GraphQL requests (negligible against the 2,500/hr cap). Stale master data is the root cause of most "label not found" / "wrong UUID" failures, so the cost of refreshing is far below the cost of skipping.
 
-### Step 2 — Set up customer config
+The only time to skip: running back-to-back customers in the same session where you already refreshed minutes ago. Bruna can ask to skip; otherwise default to refreshing.
 
-If `customer_config.json` doesn't exist in the customer folder, create it interactively. Required fields:
+### Step 2 — Set up customer config (per customer, in order)
+
+For each customer in the intake list, create or verify `~/Desktop/Customers/<Name>/customer_config.json`. The required shape:
 
 ```json
 {
@@ -89,12 +104,15 @@ If `customer_config.json` doesn't exist in the customer folder, create it intera
 }
 ```
 
-Ask Bruna for:
-- The team (`dme` or `infusion`)
-- The Linear Customer UUID for the customer (find via Linear MCP: `list_customers`)
-- The Customer's Qual Criteria project UUID (find via Linear MCP: `list_projects` filtered by name)
+**If the customer is _existing_:** populate `customer_id` and `customer_project_id` from the UUIDs Bruna provided in intake. Confirm them by calling Linear MCP `get_customer` and `get_project` and showing Bruna the names — catches paste errors before they become 5,000 wrong tickets.
 
-Fill in `team_id`, `state_id`, `parent_estimate=2`, `customer_estimate=1` from defaults. Save and confirm.
+**If the customer is _new_:** create the records via Linear MCP, then write the returned UUIDs into `customer_config.json`:
+
+1. **Create the Customer record** — call `save_customer` with `{ name: "<Customer Name>", domains: [...if Bruna provided any...] }` (plus any other fields she gave during intake). Capture the returned `id` → `customer_id`.
+2. **Create the Qual Criteria project** — call `save_project` with `{ name: "Qual Criteria - <Customer Name>", teamIds: [<DME or Infusion team UUID from teams.csv>] }`. Capture the returned `id` → `customer_project_id`.
+3. **Show Bruna both UUIDs and the Linear URLs** before saving the config — last chance to catch a mistake (wrong team, typo in name) before downstream scripts start creating tickets against them.
+
+Defaults to fill in regardless: `parent_estimate=2`, `customer_estimate=1`. Save the config and confirm with Bruna before proceeding to Step 3.
 
 ### Step 3 — Match payors → Linear projects
 

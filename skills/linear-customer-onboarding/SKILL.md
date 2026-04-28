@@ -242,9 +242,16 @@ Identical pattern to step 6. Each ticket:
 python3 ~/.claude/skills/linear-customer-onboarding/scripts/create_parent_customer_needs.py "<CustomerName>" --sleep 1.5
 ```
 
-Loops every parent in `parents_created.csv` (plus any pre-existing parents listed in an optional `existing_parents.csv`) and calls `customerNeedCreate(customerId, issueId)`.
+Attaches a Linear Customer Need linking each **in-scope** parent ticket to the customer's record. Scope is determined by joining `input.csv` × `payor_matches.csv` to compute the set of `(Project UUID, Code)` pairs the customer actually asked for. Two sources of in-scope parents:
 
-⚠ **Important:** Linear does NOT dedupe Customer Needs. The script's tracker prevents duplicates within its own history, but if a parent already had a Customer Need attached for this customer outside of this script, you'll create a duplicate. Ask Bruna to confirm before running on any pre-existing parents.
+1. **Every row in `parents_created.csv`** — these were created during this run, so they're in scope by construction.
+2. **Pre-existing parents from `existing_parents.csv` whose `(Project UUID, Code)` appears in the customer's scope** — i.e., parents that already existed in Linear (created during another customer's onboarding) but match a payor + code the current customer also cares about. These get a Need so the customer shows up alongside any prior customers on shared criteria.
+
+Out of scope: pre-existing parents in the same Insurance projects whose codes the current customer didn't request. Those are skipped — this customer doesn't need to be linked to criteria they didn't ask for.
+
+The script prints the in-scope / out-of-scope split at startup so Bruna can sanity-check the count before tickets start firing.
+
+⚠ **Important:** Linear does NOT dedupe Customer Needs by `(customerId, issueId)`. The script's own tracker prevents duplicates within its history, but if a parent already had a Customer Need attached for this customer *outside* this script (manually in the Linear UI, or from a prior aborted run whose tracker was deleted), the script will create a duplicate. Ask Bruna to confirm before running on a customer that's been partially set up before.
 
 ## Rate-limit reality check
 

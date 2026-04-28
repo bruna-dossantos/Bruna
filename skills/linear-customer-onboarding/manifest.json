@@ -11,6 +11,7 @@
     "scripts/create_customer_tickets.py",
     "scripts/create_parent_customer_needs.py",
     "scripts/create_team_label.py",
-    "references/graphql.md"
+    "references/graphql.md",
+    "references/payor_taxonomy.md"
   ]
 }

@@ -98,16 +98,35 @@ Fill in `team_id`, `state_id`, `parent_estimate=2`, `customer_estimate=1` from d
 
 ### Step 3 — Match payors → Linear projects
 
+Payor matching is the hardest part of this pipeline. Pure fuzzy-string matching gets it wrong constantly: it can't expand `BCBS` to `Blue Cross Blue Shield`, can't disambiguate `Anthem BCBS` (CA vs CO vs CT vs ...), can't tell that `Sunshine Health` is a Centene Florida Medicaid MCO vs an unrelated `Sunshine State Health Plan`, and can't tell Marketplace from Medicare Advantage from Medicaid MCO when names overlap. So this step is a two-phase: a script generates candidates, then **you (the LLM) make the actual matching decisions** using authoritative reference data.
+
+**Phase A — generate candidates:**
+
 ```bash
 python3 ~/.claude/skills/linear-customer-onboarding/scripts/match_payors.py "<CustomerName>"
 ```
 
-This reads `input.csv`, dedupes CSV Payors, fuzzy-matches each unique payor to the closest Insurance project name (using `difflib.SequenceMatcher`), and writes `payor_matches.csv` with a Confidence score.
+This reads `input.csv`, dedupes CSV Payors, expands common acronyms (BCBS, UHC, KP, ABH, etc.), pulls state hints out of the payor names + any State columns, scores each payor against every Linear insurance project (combined sequence-ratio + token-Jaccard + state alignment bonus / collision penalty), and writes:
+
+- `payor_match_candidates.csv` — top-K candidates per payor with scores and state hints
+- `payor_matches.csv` — auto-confirmed rows where top score ≥ 0.95 AND margin ≥ 0.15 AND no state mismatch; everything else has `Decision=review` (or `review-state-mismatch` / `no-match`) with the matched fields blank
+
+**Phase B — resolve `review` rows yourself:**
+
+For every row in `payor_matches.csv` with `Decision != "auto"`:
+
+1. Load `references/payor_taxonomy.md` for authoritative subsidiary / DBA / state-coverage data (BCBS state companies, SEC Exhibit 21 disclosures for Molina/Centene/Humana/Aetna/UHC/Cigna, Kaiser regional structure, Medicaid MCO programs by state, Medicare Advantage parent → brand mappings).
+2. Apply the `insurance-mapper` skill's rubric — its 10 non-negotiable rules, LOB taxonomy (Commercial / Medicaid MCO / Medicare Advantage / Marketplace / Dual SNP / etc.), decision framework, and naming conventions.
+3. Pick the right Linear insurance project from the candidate list (or from the full project list if none of the candidates fit), or mark it as truly unmatched.
+4. Edit `payor_matches.csv` directly: fill `Matched Project` + `Project UUID` for resolved rows, set `Decision=manual` (or `unmatched`).
+
+Naming convention — when you have to flag that a Linear project is missing and needs to be created, use the same naming rules the insurance-mapper skill enforces (parent payor + LOB + state where applicable, e.g. `Anthem BCBS California - Medi-Cal`, not `Anthem CA Medicaid`).
 
 **CHECKPOINT — show the user:**
-- All matches with Confidence < 0.85, asking them to confirm or correct
-- Any unmatched payors (Confidence == 0)
-- Whether they want to manually edit `payor_matches.csv` before proceeding
+- Counts: auto-confirmed, your-resolved, unmatched
+- The full list of rows you resolved manually with the reasoning (one line each: `<CSV Payor>` → `<Matched Project>` because `<short reason>`)
+- Any rows you couldn't resolve and what's blocking (missing project, ambiguous LOB, etc.)
+- Ask whether they want to edit `payor_matches.csv` further before proceeding
 
 Wait for explicit go-ahead before continuing.
 

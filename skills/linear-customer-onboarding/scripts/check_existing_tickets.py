@@ -26,10 +26,10 @@ Reads:
 Writes:
   ~/Desktop/Customers/<name>/existing_parents.csv
     columns: Project UUID, Matched Project, Code, Title,
-             Issue UUID, Issue ID, URL
+             Issue UUID, Issue ID, URL, State UUID, State Name
   ~/Desktop/Customers/<name>/existing_customer_tickets.csv
     columns: Parent Issue UUID, Code, Title, Issue UUID, Issue ID,
-             URL, Labels
+             URL, Labels, State UUID, State Name
 
 Both files use code parsed from issue titles (the convention is
 "<HCPCS> - <Description>", e.g. "A4351 - Indwelling Catheter"). Issues
@@ -84,6 +84,7 @@ query Issues($projectId: String!, $cursor: String) {
       url
       title
       parent { id }
+      state { id name type }
       labels { nodes { id name } }
     }
     pageInfo { hasNextPage endCursor }
@@ -157,6 +158,7 @@ def main():
             code = parse_code(iss["title"])
             if not code:
                 continue  # title doesn't start with a code → can't collide
+            state = iss.get("state") or {}
             parent_rows.append({
                 "Project UUID":    puuid,
                 "Matched Project": pname,
@@ -165,6 +167,8 @@ def main():
                 "Issue UUID":      iss["id"],
                 "Issue ID":        iss["identifier"],
                 "URL":             iss["url"],
+                "State UUID":      state.get("id", ""),
+                "State Name":      state.get("name", ""),
             })
             kept += 1
         print(f"  {pname}: {len(parents)} parents ({kept} with codes) "
@@ -174,11 +178,21 @@ def main():
     with open(out_path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=[
             "Project UUID", "Matched Project", "Code", "Title",
-            "Issue UUID", "Issue ID", "URL"])
+            "Issue UUID", "Issue ID", "URL", "State UUID", "State Name"])
         w.writeheader()
         w.writerows(parent_rows)
+    # State distribution summary so Bruna can spot oddities
+    state_dist = {}
+    for r in parent_rows:
+        state_dist[r["State Name"] or "(unknown)"] = (
+            state_dist.get(r["State Name"] or "(unknown)", 0) + 1)
     print(f"wrote {out_path} ({len(parent_rows)} existing parents)",
           file=sys.stderr)
+    if state_dist:
+        print(f"  states: " + ", ".join(
+            f"{name}={count}" for name, count
+            in sorted(state_dist.items(), key=lambda x: -x[1])),
+              file=sys.stderr)
 
     # ---- 3. Query customer's Qual Criteria project ----
     cust_proj = cfg.get("customer_project_id")
@@ -208,6 +222,7 @@ def main():
         labels_node = iss.get("labels") or {}
         labels = "|".join(
             l["name"] for l in (labels_node.get("nodes") or []))
+        state = iss.get("state") or {}
         cust_rows.append({
             "Parent Issue UUID": parent_id,
             "Code":              code,
@@ -216,13 +231,16 @@ def main():
             "Issue ID":          iss["identifier"],
             "URL":               iss["url"],
             "Labels":            labels,
+            "State UUID":        state.get("id", ""),
+            "State Name":        state.get("name", ""),
         })
 
     cpath = os.path.join(cdir, "existing_customer_tickets.csv")
     with open(cpath, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=[
             "Parent Issue UUID", "Code", "Title",
-            "Issue UUID", "Issue ID", "URL", "Labels"])
+            "Issue UUID", "Issue ID", "URL", "Labels",
+            "State UUID", "State Name"])
         w.writeheader()
         w.writerows(cust_rows)
     print(f"wrote {cpath} ({len(cust_rows)} existing customer tickets, "

@@ -232,6 +232,7 @@ python3 ~/.claude/skills/linear-customer-onboarding/scripts/create_customer_tick
 Identical pattern to step 6. Each ticket:
 - Lives in the customer's Qual Criteria project (from `customer_config.json`)
 - Has `parentId` pointing at the corresponding parent ticket — resolved from `parents_created.csv` (this run) **or** `existing_parents.csv` (parents already in Linear, from Step 4). This is what lets you onboard a customer against insurance projects that already had parents from a previous customer's onboarding.
+- **Inherits the parent's workflow state.** If the parent is `In Progress` because someone has already started writing criteria, the customer ticket starts in `In Progress` too — not `Not Started`. The same applies for `Done`, `In Review`, etc. This keeps the customer view in lock-step with the canonical parent. When the parent's state isn't recorded (older `parents_created.csv` files that pre-date the `State UUID` column), the customer ticket falls back to the team's `Not Started`.
 - Carries the customer's CSV Payor label (resolved from team labels) + service line label
 - Title in the form `<HCPCS> - <Description>` (same as the parent)
 - **Skips any row whose `(Parent Issue UUID, Code)` is already in `existing_customer_tickets.csv`** — protects against re-runs and accidental double-onboarding.

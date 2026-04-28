@@ -73,7 +73,8 @@ def main():
     new = not os.path.exists(tracker)
     tf = open(tracker, "a", newline="")
     fields = ["Matched Project", "Code", "Title", "Project UUID",
-              "Issue UUID", "Issue ID", "URL", "Priority", "Total Volume"]
+              "Issue UUID", "Issue ID", "URL", "Priority", "Total Volume",
+              "State UUID"]
     w = csv.DictWriter(tf, fieldnames=fields)
     if new:
         w.writeheader(); tf.flush()
@@ -106,6 +107,7 @@ def main():
                 "URL": url,
                 "Priority": r["Priority"],
                 "Total Volume": r["Total Volume"],
+                "State UUID": r["State UUID"],
             })
             tf.flush(); os.fsync(tf.fileno())
             done.add(key)

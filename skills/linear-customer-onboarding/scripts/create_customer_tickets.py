@@ -16,6 +16,11 @@ Writes:
 Each customer ticket:
   - lives in cfg["customer_project_id"]
   - has parentId = matching parent ticket UUID
+  - **inherits the parent's workflow state** — i.e., if the parent is
+    "In Progress" because someone has already started writing criteria
+    for it, the customer ticket starts in "In Progress" too. Falls back
+    to the team's "Not Started" state when the parent's state isn't
+    recorded (older tracker files that pre-date this column).
   - carries payor label (DME-team-scoped) + service line label
   - title = "<HCPCS> - <description>"  (e.g. "A4351 - Indwelling Catheter")
 
@@ -61,13 +66,18 @@ def create_issue(payload, token):
 
 
 def load_parent_lookup(cdir):
-    """(Project UUID, Code) → Parent Issue UUID.
+    """(Project UUID, Code) → {"uuid": Parent Issue UUID,
+                                "state_id": parent's State UUID or ""}.
 
-    Merges three sources, in order of preference:
+    Merges two sources, in order of preference:
       1. parents_created.csv  — parents this run just created
       2. existing_parents.csv — parents already in Linear (auto-pulled
          by check_existing_tickets.py)
-    Either source's UUID is fine; we keep whichever we see first."""
+
+    Either source's UUID is fine; we keep whichever we see first.
+    `state_id` may be empty string for older tracker files that pre-date
+    the State UUID column — the caller falls back to the team default.
+    """
     out = {}
     for fname in ("parents_created.csv", "existing_parents.csv"):
         path = os.path.join(cdir, fname)
@@ -77,8 +87,10 @@ def load_parent_lookup(cdir):
             puuid = (r.get("Project UUID") or "").strip()
             code  = (r.get("Code") or "").strip()
             iuuid = (r.get("Issue UUID") or "").strip()
+            state = (r.get("State UUID") or "").strip()
             if puuid and code and iuuid:
-                out.setdefault((puuid, code), iuuid)
+                out.setdefault((puuid, code),
+                               {"uuid": iuuid, "state_id": state})
     return out
 
 
@@ -223,18 +235,23 @@ def main():
             failed += 1
             continue
         proj = m["uuid"]
-        parent = parents.get((proj, code))
-        if not parent:
+        parent_info = parents.get((proj, code))
+        if not parent_info:
             miss_parent += 1
             print(f"  MISS PARENT [{i}] {m['matched']}/{code}", file=sys.stderr)
             continue
-        key = (proj, parent, code, payor)
+        parent_uuid  = parent_info["uuid"]
+        # Inherit the parent's workflow state. Older tracker files
+        # don't have State UUID — fall back to the team's "Not Started"
+        # so we never send a malformed mutation.
+        parent_state = parent_info["state_id"] or state_id
+        key = (proj, parent_uuid, code, payor)
         if key in done:
             skipped += 1
             continue
         # Linear-side dedup: skip if a customer ticket for this parent +
         # code already exists in the customer's Qual Criteria project.
-        if (parent, code) in existing_cust:
+        if (parent_uuid, code) in existing_cust:
             skipped_existing += 1
             continue
 
@@ -250,9 +267,9 @@ def main():
             "title":     title,
             "teamId":    team_uuid,
             "projectId": cust_proj,
-            "parentId":  parent,
+            "parentId":  parent_uuid,
             "labelIds":  [x for x in (payor_label, sl_label) if x],
-            "stateId":   state_id,
+            "stateId":   parent_state,
             "priority":  prio,
             "estimate":  CUSTOMER_ESTIMATE,
         }
@@ -264,7 +281,7 @@ def main():
                 "Code": code,
                 "Title": title,
                 "Project UUID": proj,
-                "Parent Issue UUID": parent,
+                "Parent Issue UUID": parent_uuid,
                 "Customer Issue UUID": uuid,
                 "Customer Issue ID": ident,
                 "URL": url,

@@ -12,18 +12,29 @@ See `references/context.md` for full work context: name, role, team structure, t
 
 ## Skills
 
+### Chief of Staff plugin (`chief-of-staff:*`)
+
 | Skill | Trigger |
 |-------|---------|
-| `slack-reply-triage` | Check Slack, triage messages, catch up on mentions, draft replies, "what do I need to respond to" |
-| `one-on-one-prep` | Prep for a 1:1, create meeting notes, "get ready for my meeting with [name]" |
-| `daily-briefing` | Morning brief, "brief me", "what's my day", "catch me up", "what's happening today" |
+| `chief-of-staff:morning-command-center` | Brief me, morning brief, daily brief, what's my day, catch me up, command center, what's happening today |
+| `chief-of-staff:slack-operator` | Check Slack, triage Slack, slack operator, catch up on Slack, draft my Slack replies, what do I need to respond to |
+| `chief-of-staff:meeting-debrief` | Debrief, log the meeting, extract action items, meeting debrief, what came out of my meeting |
+| `chief-of-staff:meeting-prep` | Prep for my meeting, meeting prep, prepare for [meeting], get ready for my meeting with [name] |
+
+### Legacy (do not use — superseded by chief-of-staff plugin)
+
+| Skill | Replaced by |
+|-------|-------------|
+| `slack-reply-triage` | `chief-of-staff:slack-operator` |
+| `one-on-one-prep` | `chief-of-staff:meeting-prep` |
+| `daily-briefing` | `chief-of-staff:morning-command-center` |
 
 ## MCP Integrations
 
 | Integration | Scope |
 |-------------|-------|
 | Slack | Search public + private channels, DMs, threads |
-| Notion | Triage tracking DB, Meeting Notes DB, People Directory |
+| Notion | Commitments DB, Open Loops DB, Triage DB, Meeting Notes DB, People Directory, Daily Briefings DB |
 | GitHub | `bruna-dossantos/bruna` only |
 
 ## Hard Rules

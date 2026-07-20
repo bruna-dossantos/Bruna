@@ -86,16 +86,28 @@ payer→project mapping file.
 The crosswalk grows from Bruna's validated decisions. Two entry points, both write to
 `payer_project_crosswalk.csv` and win automatically on the next run:
 
-- **From the payer→project mapping** (preferred): in `Payer_Project_Mapping_<date>.csv`, Bruna
-  marks the **`validated`** column (`x`/`yes`) on any row she confirms — correcting
-  `resolved_project` first on low/zero-confidence rows — then feeds it back:
+- **From the payer→project mapping** (preferred): in `Payer_Project_Mapping_<date>.xlsx` (or
+  `.csv`), Bruna fills the **`validated`** column, then feeds it back:
   ```bash
-  python3 scripts/apply_feedback.py "<Payer_Project_Mapping_<date>.csv>"   # add --dry-run to preview
+  python3 scripts/apply_feedback.py "<Payer_Project_Mapping_<date>.xlsx>"   # add --dry-run to preview
   ```
-  It appends/updates the matching `(family, payer, plan_category)` crosswalk entry (UUID looked up
-  from `insurance_projects.csv` when absent), backs up the crosswalk first, and is idempotent
-  (re-feeding the same file is a no-op). Rows whose project isn't in the projects list are reported,
-  not written.
+  The `validated` cell is read three ways:
+  - **truthy word** (`x`/`yes`/`y`/`✓`) — validate the row as-is (correct `resolved_project` in
+    place first on low/zero-confidence rows). UUID comes from `project_uuid`, else looked up by
+    project name (tolerant of `&`/`and`/case/punctuation, requiring a unique match).
+  - **a Linear project UUID** — treated as **authoritative**: the canonical project name is pulled
+    from that UUID, overriding the row's project column. Use this to resolve a blank row *or*
+    correct a wrong auto-mapping in one step.
+  - **"New Project Needed"** (any text containing "new project") — there is no existing Linear
+    project to point at, so it is **not** crosswalked; instead it's collected into
+    `New_Projects_Needed_<date>.csv` for project creation (see below).
+
+  It appends/updates the matching `(family, payer, plan_category)` crosswalk entry, tags it
+  `source = Bruna-validated`, backs up the crosswalk first, and is idempotent (re-feeding the same
+  file is a no-op). Rows whose project/UUID can't be resolved are reported, not written.
+- **New projects**: rows in `New_Projects_Needed_<date>.csv` need a Linear insurance project
+  created first (via the Linear MCP), then the master-data cache refreshed so the new project lands
+  in `insurance_projects.csv`; only then can those payers be validated into the crosswalk.
 - **From the Needs-Review tab**: filling the `→ Correct Payer/Project` column and appending those
   rows to `payer_project_crosswalk.csv` (same columns) works too — same effect.
 

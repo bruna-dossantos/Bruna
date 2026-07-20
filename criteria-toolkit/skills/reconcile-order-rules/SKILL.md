@@ -68,13 +68,36 @@ Outputs land in `~/Documents/Claude/Projects/Criteria Updates/`, date-stamped:
   **NEW-TIX → create**, **CONFLICT → review**, **UNIT-GAP**, **DONE (in sync)**, and
   **Needs Review (order names)** (unresolved rows with order type name + ID for Bruna to map).
 - `row_resolution_<date>.csv` — every row with its resolved project + basis.
+- `Payer_Project_Mapping_<date>.xlsx` + `.csv` — the unique payer→project mapping with a **0–5
+  confidence score**. One row per `(payer_family × insurance_payer × plan_category ×
+  resolved_project)` combo, color-coded by confidence, sorted highest-confidence + highest-volume
+  first. Confidence reflects the resolution layer that won: **5** crosswalk (source of truth),
+  **4** family/category(+state) rule, **3** order-name mining / BCBS→Anthem fallback / strong
+  name-mapper, **2** weaker name match, **0** unresolved. Last column **`order_type_names`** is
+  populated *only when the order-rule name actually drove the mapping* (basis `ordername`, or a
+  family+state resolution where the state came from the order name, not the payer). The
+  **`validated`** column is the feedback round-trip (see Step 6). Built by
+  `scripts/build_payer_mapping.py`.
 
-Report the headline counts and point Bruna to the FLIP and Needs-Review tabs.
+Report the headline counts and point Bruna to the FLIP and Needs-Review tabs, plus the
+payer→project mapping file.
 
-### Step 6 — Feedback loop
-When Bruna fills in the `→ Correct Payer/Project` column on the Needs-Review tab, append those
-decisions to `payer_project_crosswalk.csv` (same columns). They become source of truth and are
-applied automatically on the next run.
+### Step 6 — Feedback loop (validated → crosswalk)
+The crosswalk grows from Bruna's validated decisions. Two entry points, both write to
+`payer_project_crosswalk.csv` and win automatically on the next run:
+
+- **From the payer→project mapping** (preferred): in `Payer_Project_Mapping_<date>.csv`, Bruna
+  marks the **`validated`** column (`x`/`yes`) on any row she confirms — correcting
+  `resolved_project` first on low/zero-confidence rows — then feeds it back:
+  ```bash
+  python3 scripts/apply_feedback.py "<Payer_Project_Mapping_<date>.csv>"   # add --dry-run to preview
+  ```
+  It appends/updates the matching `(family, payer, plan_category)` crosswalk entry (UUID looked up
+  from `insurance_projects.csv` when absent), backs up the crosswalk first, and is idempotent
+  (re-feeding the same file is a no-op). Rows whose project isn't in the projects list are reported,
+  not written.
+- **From the Needs-Review tab**: filling the `→ Correct Payer/Project` column and appending those
+  rows to `payer_project_crosswalk.csv` (same columns) works too — same effect.
 
 ## Verdicts
 - **DONE** — rule built, ticket already Done (in sync).
@@ -90,7 +113,9 @@ This skill does NOT write. To apply FLIP→Done or create NEW-TIX, use
 explicit confirmation. Start with FLIP→Done (lowest risk).
 
 ## Notes
-- The crosswalk grows over time and is authoritative — extend it, don't re-derive from scratch.
+- The crosswalk grows over time and is authoritative — extend it (Step 6), don't re-derive from scratch.
 - `scripts/resolver.py` holds the family/state/order-name logic; `scripts/reconcile.py` is the
-  entry point; `scripts/build_workbook.py` renders the workbook.
+  entry point; `scripts/build_workbook.py` renders the reconciliation workbook;
+  `scripts/build_payer_mapping.py` renders the payer→project mapping; `scripts/apply_feedback.py`
+  promotes validated mapping rows into the crosswalk.
 - See also memory: `payer-project-crosswalk`, `insurance-reconciliation-sop`.

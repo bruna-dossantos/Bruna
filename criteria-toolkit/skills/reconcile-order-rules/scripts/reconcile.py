@@ -181,7 +181,16 @@ def main(src):
         w=csv.DictWriter(f,fieldnames=cols,extrasaction="ignore"); w.writeheader(); w.writerows(res)
     from build_workbook import build
     build(detail, res, buckets, vol, f"{OUT}/Order_Rule_Linear_Reconciliation_{stamp}.xlsx", stamp)
-    print(f"\nwrote:\n  {OUT}/Order_Rule_Linear_Reconciliation_{stamp}.xlsx\n  {OUT}/row_resolution_{stamp}.csv")
+    # unique payer -> project mapping with confidence (standard output)
+    from build_payer_mapping import build as build_mapping
+    map_out, map_dist = build_mapping(res, WORKDIR,
+        f"{OUT}/Payer_Project_Mapping_{stamp}.csv", f"{OUT}/Payer_Project_Mapping_{stamp}.xlsx")
+    resolved_map=sum(1 for r in map_out if r["confidence"]>0)
+    print(f"\npayer→project mapping: {len(map_out):,} unique combos "
+          f"({resolved_map:,} resolved, {len(map_out)-resolved_map:,} unresolved) · "
+          + " ".join(f"conf{k}={map_dist.get(k,0)}" for k in [5,4,3,2,0]))
+    print(f"\nwrote:\n  {OUT}/Order_Rule_Linear_Reconciliation_{stamp}.xlsx\n  {OUT}/row_resolution_{stamp}.csv"
+          f"\n  {OUT}/Payer_Project_Mapping_{stamp}.xlsx\n  {OUT}/Payer_Project_Mapping_{stamp}.csv")
 
 if __name__=="__main__":
     args=sys.argv[1:]

@@ -72,13 +72,19 @@ def resolve_family(fam, cat, payer, orn, projset):
         return (cand,'family+state') if cand in projset else (None,'medicaid-no-state-proj:'+title(st))
     return (None,'need-specific-payer')
 
-# Layer 4: mine order_rule_name for brand+state+LOB
+# Layer 4: mine order_rule_name for brand+state+LOB.
+# A template may be a list — the first candidate found in the projects list wins (handles brands
+# whose project names vary, e.g. Humana "Health Horizons" in some states, "Healthy Horizons" in others).
 BRAND=[
  (['fidelis'], "Fidelis Care"),
  (['nebraska total care'], "Nebraska Total Care Medicaid MCO (Nebraska)"),
  (['ambetter'], "Ambetter Centene Medicaid MCO ({S})"),
  (['centene'], "Centene Medicaid MCO ({S})"),
  (['northwood'], "Northwood"),
+ (['humana healthy horizons','humana health horizons'],
+   ["Humana Health Horizons Medicaid MCO ({S})","Humana Healthy Horizons Medicaid MCO ({S})"]),
+ (['molina'], "Molina Medicaid MCO ({S})"),
+ (['aetna better health'], "Aetna Better Health Medicaid MCO ({S})"),
  (['anthem'], "Anthem Medicaid MCO ({S})"),
  (['bcbs','blue cross'], "Blue Cross Blue Shield Medicaid MCO ({S})"),
  (['uhc','unitedhealthcare','united healthcare','community'], "United Healthcare Community Medicaid MCO ({S})"),
@@ -89,11 +95,13 @@ def resolve_ordername(orn, projset, slug2name, slug):
     stt=title(st) if st else None
     for kws,tmpl in BRAND:
         if any(k in n for k in kws):
-            if "{S}" in tmpl and not stt: return (None,'ordername:brand-no-state')
-            cand=tmpl.replace("{S}",stt or "")
-            if cand in projset: return (cand,'ordername')
-            if slug(cand) in slug2name: return (slug2name[slug(cand)],'ordername')
-            return (None,f'ordername:no-project:{cand}')
+            tmpls=tmpl if isinstance(tmpl,list) else [tmpl]
+            if any("{S}" in t for t in tmpls) and not stt: return (None,'ordername:brand-no-state')
+            for t in tmpls:
+                cand=t.replace("{S}",stt or "")
+                if cand in projset: return (cand,'ordername')
+                if slug(cand) in slug2name: return (slug2name[slug(cand)],'ordername')
+            return (None,f'ordername:no-project:{tmpls[0].replace("{S}",stt or "")}')
     return (None,'ordername:no-indicator')
 
 def lob_ok(cat, proj):

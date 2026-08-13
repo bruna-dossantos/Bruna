@@ -1,0 +1,60 @@
+{
+  "policy": {
+    "lcd": "L37373",
+    "title": "MRI and CT Scans of the Head and Neck",
+    "payer": "Medicare — Noridian Healthcare Solutions (Jurisdictions JE and JF)",
+    "ncd_baseline": "NCD 220.1 — Computed Tomography (Pub. 100-3)",
+    "article": "A57204 — Billing and Coding: MRI and CT Scans of the Head and Neck"
+  },
+  "groups": [
+    {
+      "group_label": "CT Scans — Group 1",
+      "codes": [
+        {
+          "code": "70450",
+          "description": "CT head/brain w/o dye",
+          "modality": "CT",
+          "contrast": "Without contrast",
+          "qualification": "all 5 criteria below must be qualified",
+          "criteria": [
+            {
+              "n": 1,
+              "title": "Covered Diagnosis (LCD Group 1 ICD-10)",
+              "type": "CLINICAL_INDICATION",
+              "definition": "The patient has a documented diagnosis that is one of the LCD Group 1 covered ICD-10-CM diagnoses, which are the only covered diagnoses for head and neck CT, and the diagnosis is supported by documentation of medical necessity in the medical record.",
+              "source": "Article A57204, ICD-10-CM Codes that Support Medical Necessity, Group 1 (6,458 codes)"
+            },
+            {
+              "n": 2,
+              "title": "Medical Appropriateness & Documentation",
+              "type": "CLINICAL_INDICATION",
+              "definition": "The head and neck CT is medically appropriate given the patient's symptoms and preliminary (or provisional) diagnosis, and the medical record documents the signs and symptoms of the disease that warrant the diagnostic test, supported by history and physical notes and laboratory results as applicable.",
+              "source": "LCD L37373, CT section A; Article A57204, Documentation Guidelines"
+            },
+            {
+              "n": 3,
+              "title": "Routine Dental Service Documentation",
+              "type": "DOCUMENTATION",
+              "definition": "When the documented diagnosis is one of the potentially routine-dental codes, the medical record supports that the service is reasonable and necessary and is not a routine dental service. If the documented diagnosis is not one of these codes, consider this criterion qualified.",
+              "source": "Article A57204, Group 1 Asterisk Explanation"
+            },
+            {
+              "n": 4,
+              "title": "Headache / Dizziness Pathway",
+              "type": "CLINICAL_INDICATION",
+              "definition": "When the indication for the CT is headache or dizziness, the study qualifies only if the presentation indicates a focal problem or the patient has experienced a significant change in symptomatology, or the request meets one of the following headache-specific indications:\nA. After a head injury, to rule out intracranial bleeding.\nB. Headache greater than two weeks in duration not responding to medical therapy, to rule out a tumor.\nC. Headache of sudden onset and severity, to rule out an aneurysm, bleeding, and/or arteriovenous malformation.\nIf the indication for the CT is not headache or dizziness, consider this criterion qualified.",
+              "source": "LCD L37373, CT sections D and E"
+            },
+            {
+              "n": 5,
+              "title": "Cancer Staging Exclusion",
+              "type": "EXCLUSION",
+              "definition": "When the CT is performed for cancer staging and the malignancy is carcinoma of the esophagus, oropharynx, or prostate, or non-melanoma skin cancer, the study is not covered in the absence of documented signs or symptoms of brain involvement. If the CT is not performed for cancer staging, or the malignancy is not one of these types, or there are documented signs or symptoms of brain involvement, consider this criterion qualified.",
+              "source": "LCD L37373, MRI / Cancer Staging section"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

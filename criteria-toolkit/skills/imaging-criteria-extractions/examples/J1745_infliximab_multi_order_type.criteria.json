@@ -1,0 +1,31 @@
+{
+  "policy": {"lcd": "example CPB", "title": "Infliximab (J1745) — MULTIPLE order types (the split)", "payer": "BCBS Arizona"},
+  "groups": [{
+    "group_label": "Infusion",
+    "codes": [{
+      "code": "J1745", "description": "Injection, infliximab, 10 mg", "modality": "", "contrast": "",
+      "_note": "Same payer + same code, but the criteria SETS differ by diagnosis and by lifecycle stage, so each is its OWN order type — a split, not an internal OR.",
+      "order_types": [
+        {
+          "order_type": "Initial: Rheumatoid Arthritis",
+          "context": {"stage": "Initial", "condition": "Rheumatoid Arthritis", "product": "IV infliximab", "category": null},
+          "logic_expression": "C1 AND C2 AND C3",
+          "criteria": [
+            {"n": 1, "title": "Diagnosis of moderately-to-severely active RA", "type": "CLINICAL_INDICATION", "definition": "The patient has a documented diagnosis of moderately to severely active rheumatoid arthritis.", "source": "CPB"},
+            {"n": 2, "title": "Inadequate response to a conventional DMARD", "type": "PRIOR_WORKUP", "definition": "The record documents an inadequate response, intolerance, or contraindication to at least one conventional synthetic DMARD (e.g., methotrexate).", "source": "CPB"},
+            {"n": 3, "title": "TB screening prior to initiation", "type": "PRIOR_WORKUP", "definition": "The record documents negative or adequately treated latent tuberculosis screening before initiating therapy.", "source": "CPB"}
+          ]
+        },
+        {
+          "order_type": "Continuation: Rheumatoid Arthritis",
+          "context": {"stage": "Continuation", "condition": "Rheumatoid Arthritis", "product": "IV infliximab", "category": null},
+          "logic_expression": "C1 AND C2",
+          "criteria": [
+            {"n": 1, "title": "Documented positive clinical response", "type": "THERAPY_LINKAGE", "definition": "The record documents a positive clinical response to infliximab therapy since initiation (e.g., reduction in disease activity).", "source": "CPB"},
+            {"n": 2, "title": "Continued diagnosis and ongoing need", "type": "CLINICAL_INDICATION", "definition": "The patient continues to carry the rheumatoid arthritis diagnosis and requires ongoing therapy.", "source": "CPB"}
+          ]
+        }
+      ]
+    }]
+  }]
+}

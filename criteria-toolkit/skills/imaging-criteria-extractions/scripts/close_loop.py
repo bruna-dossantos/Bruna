@@ -9,13 +9,20 @@ a worklist of exactly what still needs authoring (the model/config-owner tops up
 resolutions.json or re-authors the gap criteria, then re-runs). On convergence
 (or with --render) it regenerates the full downstream so everything stays in sync.
 
-Authoring stays human/model-in-the-loop by design — we don't want auto-invented
-clinical definitions going live — but every other step (apply, check, regenerate,
-convergence decision, worklist) is automated.
+Two modes:
+  • default        — check-only. Emits a worklist and stops; a human/model authors
+                     the fixes, then re-runs. Authoring stays in the loop by design.
+  • --best-effort  — never dead-ends. Any term still undefined is AUTO-STUBBED with a
+                     loud "PENDING — REQUIRED" flag (treated as NOT met), any residual
+                     clinical gap is AUTO-ACCEPTED, and the full package is ALWAYS
+                     rendered, plus a "NEEDS REVIEW" list of everything auto-handled.
+                     The agent authors real fixes across re-runs to shrink that list;
+                     this guarantees a finished, reviewable package every time.
 
 Usage:
   close_loop.py criteria.json --inventory inv.json --resolutions res.json \
-      --codes codes.csv --out-dir DIR [--pyv /path/to/venv/python] [--render]
+      --codes codes.csv --out-dir DIR [--pyv /path/to/venv/python] [--render] \
+      [--best-effort]
 """
 
 import re
@@ -79,6 +86,11 @@ def main(argv=None):
     ap.add_argument("--pyv", default=sys.executable, help="python with docx/reportlab/pdfplumber")
     ap.add_argument("--pdfs", nargs="*", default=[], help="source PDFs for traceability")
     ap.add_argument("--render", action="store_true", help="regenerate full downstream on convergence")
+    ap.add_argument("--best-effort", action="store_true",
+                    help="never dead-end: auto-stub still-undefined terms (loud PENDING flag) "
+                         "and auto-accept residual gaps, then always render a complete package "
+                         "+ a NEEDS-REVIEW list. The agent authors real fixes across re-runs to "
+                         "shrink that list; this guarantees a finished package every time.")
     ap.add_argument("--max-passes", type=int, default=3)
     args = ap.parse_args(argv)
 
@@ -107,16 +119,43 @@ def main(argv=None):
         if not unres and not unaccepted:
             converged = True
             break
-        # pure code can't author definitions/criteria — hand back a worklist and stop.
+        # pure code can't author real definitions/criteria — hand back a worklist and stop.
         break
+
+    # BEST-EFFORT: never dead-end. Auto-stub still-undefined terms with a loud PENDING
+    # flag, auto-accept residual gaps, re-apply, and finish. The agent authors real
+    # fixes across re-runs; this guarantees a rendered package every time.
+    auto_stubbed, auto_accepted = [], []
+    if args.best_effort and not converged:
+        unres = unresolved_terms(base, resolutions)
+        gaps = clinical_gaps(resolved, inv)
+        for t in unres:
+            resolutions.append({
+                "term": t["term"], "status": "resolved_by_interpretation",
+                "operational_definition": {
+                    "rule": ("⚠ AUTO-STUB — no operational definition authored yet; a reviewer "
+                             "must define what counts as TRUE (time window + missing-data rule)"),
+                    "missing_data_handling": "treat as NOT met until a reviewer defines it"},
+                "provenance": {"decided_by": "auto-stub (best-effort)", "reviewer": "PENDING — REQUIRED"}})
+            auto_stubbed.append(t["term"])
+        for g in gaps:
+            if g["id"] not in accepted:
+                accepted[g["id"]] = "auto-accepted (best-effort) — PENDING review"
+                auto_accepted.append(g["id"])
+        resolved = copy.deepcopy(base)
+        R.apply(resolved, resolutions)
+        converged = True   # best-effort finish (residuals flagged for review, not dropped)
 
     # write the resolved criteria as canonical
     resolved_path = out / f"{lcd}_criteria.resolved.json"
     resolved_path.write_text(json.dumps(resolved, indent=2))
 
     # loop report + worklist
+    conv_label = "YES" if converged else "NO — worklist below"
+    if args.best_effort and (auto_stubbed or auto_accepted):
+        conv_label = "YES (best-effort) — some items AUTO-HANDLED, review below"
     rep = [f"# Close-loop report — {lcd}", "",
-           f"- Converged: **{'YES' if converged else 'NO — worklist below'}**",
+           f"- Converged: **{conv_label}**",
            f"- Passes: {len(passes)}  |  " + "; ".join(
                f"pass {p['pass']}: {p['unresolved_terms']} undefined, {p['clinical_gaps']} gaps"
                for p in passes), ""]
@@ -137,6 +176,19 @@ def main(argv=None):
         rep.append("_Author the fixes / accept residuals, then re-run close_loop._")
     else:
         rep.append("No undefined terms and no unaccepted clinical gaps. Converged — safe to render.")
+    if auto_stubbed or auto_accepted:
+        rep.append("\n## ⚠ NEEDS REVIEW — auto-handled to finish the package (best-effort)")
+        rep.append("_These were not confidently resolved. The package still rendered, but a "
+                   "reviewer must confirm each. Author real fixes in resolutions.json / "
+                   "accepted_gaps.json and re-run to clear them._")
+        if auto_stubbed:
+            rep.append("\n**Terms auto-stubbed (no operational definition yet — treated as NOT met):**")
+            for term in auto_stubbed:
+                rep.append(f"- {term}")
+        if auto_accepted:
+            rep.append("\n**Clinical gaps auto-accepted (no criterion authored yet):**")
+            for gid in auto_accepted:
+                rep.append(f"- {gid} — {next((g['sentence'][:110] for g in gaps if g['id']==gid), '')}")
     if accepted:
         rep.append("\n## Accepted residual gaps (reviewed, not fixed)")
         for gid, reason in accepted.items():
@@ -144,7 +196,7 @@ def main(argv=None):
     (out / f"{lcd}_close_loop_report.md").write_text("\n".join(rep))
     print(f"wrote {resolved_path.name} and {lcd}_close_loop_report.md", file=sys.stderr)
 
-    if args.render:
+    if args.render or (args.best_effort and converged):
         cj = str(resolved_path)
         print("regenerating full downstream from the resolved criteria…", file=sys.stderr)
         run([str(HERE / "render_criteria_docx.py"), cj, "--out", str(out / f"{lcd}_criteria_by_code.docx")], args.pyv)

@@ -175,8 +175,33 @@ $PY scripts/close_loop.py $OUT/<LCD>_criteria.json --inventory $OUT/<LCD>_rule_i
     --resolutions $OUT/<LCD>_resolutions.json --codes $CODES --accepted-gaps $OUT/<LCD>_accepted_gaps.json \
     --out-dir $OUT --pyv $PYV --pdfs $PDFS --render
 ```
-**The loop:** run → read the worklist → author new operational definitions / re-author
-gap criteria / accept a reviewed residual → re-run → repeat until "Converged: YES".
+**The loop (manual):** run → read the worklist → author new operational definitions /
+re-author gap criteria / accept a reviewed residual → re-run → repeat until
+"Converged: YES".
+
+### Step 10b — Autonomous mode (agent-driven, best-effort, always finishes)
+When asked to "run the loop automatically / until it feels good," the agent drives the
+loop itself and always ends with a fully rendered package:
+1. **Check** — run Step 10 *without* `--best-effort` to get the current worklist.
+2. **Author** — for every undefined decisive term, write a real operational definition
+   into `resolutions.json`; for every uncovered clinical rule, author a gap criterion
+   (or add it to `accepted_gaps.json` with a reason if genuinely out-of-scope). All
+   authored items carry `reviewer: PENDING`.
+3. **Re-check** — re-run and repeat 2–3 until the worklist is empty, or until further
+   passes stop shrinking it (a couple of passes).
+4. **Always finish** — do a final run with `--best-effort`. Anything still unresolved is
+   **auto-stubbed** (a loud `⚠ AUTO-STUB … PENDING — REQUIRED` definition, treated as
+   NOT met) or **auto-accepted**, the full package is rendered, and everything
+   auto-handled is listed under **“⚠ NEEDS REVIEW”** in the report. So you always get a
+   complete, in-sync package plus an explicit list of what a reviewer must still confirm.
+```
+$PY scripts/close_loop.py $OUT/<LCD>_criteria.json --inventory $OUT/<LCD>_rule_inventory.json \
+    --resolutions $OUT/<LCD>_resolutions.json --codes $CODES --accepted-gaps $OUT/<LCD>_accepted_gaps.json \
+    --out-dir $OUT --pyv $PYV --pdfs $PDFS --best-effort
+```
+`--best-effort` implies render (it always writes the full downstream). The auto-stubs
+never invent clinical meaning — they mark the term as unmet + PENDING so it can't
+silently pass; the agent's job across re-runs is to replace them with real definitions.
 
 ## Dependency order (what must precede what)
 Step 0 → 1 → 2 → 3 → (4,5,6,7,8,9 in any order) → 10 wraps them. Step 8 render needs

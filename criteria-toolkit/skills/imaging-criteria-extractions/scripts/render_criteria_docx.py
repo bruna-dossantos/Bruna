@@ -28,9 +28,15 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from docx.enum.text import WD_BREAK
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import criterion_view as V  # noqa: E402
+
 BANNER = "2E5FA3"       # section banner fill
 BANNER2 = "1F3864"      # exclusions / secondary segment
 HEADER = "E8F0FB"       # criterion header row fill
+AMBER = "FBF1DE"        # clinical-interpretation block fill
+AMBER_INK = RGBColor(0xB7, 0x79, 0x1F)
+POL_INK = RGBColor(0x2C, 0x5C, 0xC5)
 GRAY = RGBColor(0x66, 0x66, 0x66)
 BOX = "□"          # □
 
@@ -90,6 +96,34 @@ def callout(doc, text):
     r = p.add_run(text); r.italic = True; r.font.color.rgb = GRAY; r.font.size = Pt(9)
 
 
+def caption(doc, text, ink):
+    """A small colored ALL-CAPS label to head a block."""
+    p = doc.add_paragraph(); p.paragraph_format.left_indent = Inches(0.2)
+    p.paragraph_format.space_after = Pt(1)
+    r = p.add_run(text); r.bold = True; r.font.size = Pt(8); r.font.color.rgb = ink
+
+
+def clinical_block(doc, od):
+    """An amber-shaded block: our operational definition of a vague term.
+
+    Visually distinct from the (blue) policy content so a reader can always tell
+    'this is Tennr's interpretation, pending clinician sign-off' from 'this is the
+    policy'.
+    """
+    t = doc.add_table(rows=1, cols=1); t.autofit = True; _no_borders(t)
+    c = t.rows[0].cells[0]; _shade(c, AMBER)
+    head = c.paragraphs[0]
+    h = head.add_run(f'🩺 CLINICAL INTERPRETATION — how we read "{od.get("term","")}"')
+    h.bold = True; h.font.size = Pt(8.5); h.font.color.rgb = AMBER_INK
+    rev = V.reviewer_status(od)
+    tag = head.add_run(f"   (reviewer {rev})"); tag.font.size = Pt(8); tag.italic = True; tag.font.color.rgb = GRAY
+    for label, val in V.op_def_lines(od):
+        p = c.add_paragraph()
+        lr = p.add_run(f"{label}: "); lr.bold = True; lr.font.size = Pt(9); lr.font.color.rgb = AMBER_INK
+        vr = p.add_run(val); vr.font.size = Pt(9)
+    doc.add_paragraph()
+
+
 def _codes(doc_json):
     groups = doc_json.get("groups") or [{"group_label": None, "codes": doc_json.get("codes", [])}]
     return [(g.get("group_label"), c) for g in groups for c in g["codes"]]
@@ -100,6 +134,13 @@ def build(doc_json, out):
     p = doc_json.get("policy", {})
     title = d.add_heading(f"Qualification Criteria by Code — LCD {p.get('lcd','')}", level=0)
     d.add_paragraph(p.get("title", ""))
+
+    # legend: what the two treatments mean (policy vs our interpretation)
+    leg = d.add_paragraph()
+    l1 = leg.add_run("How to read this: "); l1.bold = True; l1.font.size = Pt(9)
+    l2 = leg.add_run("□ items and the blue Source line are the POLICY requirement. "); l2.font.size = Pt(9); l2.font.color.rgb = POL_INK
+    l3 = leg.add_run("Amber 🩺 blocks are Tennr's CLINICAL INTERPRETATION of a vague term "
+                     "(reviewer PENDING — a clinician signs off before go-live)."); l3.font.size = Pt(9); l3.font.color.rgb = AMBER_INK
 
     codes = [c["code"] for _, c in _codes(doc_json)]
     meta = [("Service Line", "Imaging / Radiology — CT & MRI, Head and Neck"),
@@ -142,9 +183,13 @@ def build(doc_json, out):
             crits = ot.get("criteria", [])
             for ci, cr in enumerate(crits):
                 header_row(d, str(cr.get("n", ci + 1)), cr.get("title", ""), cr.get("type", ""))
-                checklist(d, cr.get("definition", ""))
+                policy_text, op_defs = V.split_criterion(cr)
+                caption(d, "📄 POLICY REQUIREMENT", POL_INK)
+                checklist(d, policy_text)
                 if cr.get("source"):
                     callout(d, f"Source: {cr['source']}")
+                for od in op_defs:
+                    clinical_block(d, od)
                 if ci < len(crits) - 1:
                     conn = d.add_paragraph(); rr = conn.add_run("AND"); rr.bold = True
 
@@ -157,7 +202,8 @@ def build(doc_json, out):
                 h = d.add_paragraph()
                 h.add_run(f"{c['code']} · {ot.get('order_type','')} · "
                           f"{cr.get('n','')}. {cr.get('title','')}").bold = True
-                for line in cr.get("definition", "").split("\n"):
+                policy_text, _ = V.split_criterion(cr)
+                for line in policy_text.split("\n"):
                     if line.strip():
                         d.add_paragraph(line.strip())
                 if cr.get("source"):

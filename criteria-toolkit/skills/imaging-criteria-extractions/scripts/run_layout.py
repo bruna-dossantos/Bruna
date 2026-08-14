@@ -43,6 +43,7 @@ SUFFIX_MAP = [
     ("_rule_locations.json", WORKING),
     ("_traceability.json", WORKING),
     ("_traceability.html", HUMAN),
+    ("_criteria_explorer.html", HUMAN),
     ("_close_loop_report.md", CHECKS),
     ("_resolutions.json", CHECKS),
     ("_accepted_gaps.json", CHECKS),

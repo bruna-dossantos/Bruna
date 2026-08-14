@@ -220,6 +220,10 @@ def main(argv=None):
             run([str(HERE / "render_traceability_html.py"), str(out / f"{lcd}_traceability.json"),
                  "--locations", str(out / f"{lcd}_rule_locations.json"), "--pdf"] + args.pdfs
                 + ["--title", lcd, "--out", str(out / f"{lcd}_traceability.html")], sys.executable)
+            run([str(HERE / "render_criteria_explorer.py"), cj,
+                 "--traceability", str(out / f"{lcd}_traceability.json"),
+                 "--locations", str(out / f"{lcd}_rule_locations.json"), "--pdf"] + args.pdfs
+                + ["--title", lcd, "--out", str(out / f"{lcd}_criteria_explorer.html")], sys.executable)
         run([str(HERE / "build_machine_copy.py"), cj, "--codes", args.codes, "--out-dir", str(out)], sys.executable)
         print("downstream regenerated.", file=sys.stderr)
 

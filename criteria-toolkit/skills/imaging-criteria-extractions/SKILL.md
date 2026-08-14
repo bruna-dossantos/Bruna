@@ -26,7 +26,8 @@ downstream steps and drives find → fix → re-check to convergence.
 - `<LCD>_criteria_by_code.md/.docx/.pdf` — Tennr-format criteria doc (PDF = give to Tennr)
 - `<LCD>_extraction_fields.csv` + `<LCD>_extraction_fields_by_code.md/.docx` — extraction fields
 - `<LCD>_coverage_gaps.md` — criteria-vs-inventory gaps
-- `<LCD>_traceability.html` — interactive policy→rules→criteria explorer
+- `<LCD>_traceability.html` — rule-first explorer (policy→rules→criteria)
+- `<LCD>_criteria_explorer.html` — pathway-first explorer (pathway→criteria→click→policy; policy vs clinical split)
 - `<LCD>_criteria.PLATFORM.json` + `<LCD>_group1_dx_codes.csv/.json/.txt` — evaluator copy w/ codes inlined
 - `<LCD>_close_loop_report.md` — convergence report / worklist
 
@@ -40,7 +41,7 @@ MRI Head & Neck - Medicare (L37373)/
   1 - Policy Source/   ← source LCD / NCD / article PDFs
   2 - Working Files/   ← <LCD>_criteria.json, rule_inventory, rule_locations, traceability.json
   3 - Checks/          ← close_loop_report, resolutions, accepted_gaps, criteria.resolved, coverage, ambiguous_terms
-  4 - Human Outputs/   ← criteria_by_code .docx/.pdf/.md, extraction_fields_by_code docs, traceability.html
+  4 - Human Outputs/   ← criteria_by_code .docx/.pdf/.md, extraction_fields_by_code docs, traceability.html, criteria_explorer.html
   5 - Machine Outputs/ ← criteria.PLATFORM.json, MACHINE_full_codes.md, extraction_fields.csv, group1_dx_codes .csv/.json/.txt
 ```
 `run_layout.py` is the single source of truth for the bucket a file lands in — keep
@@ -161,17 +162,29 @@ $PY scripts/coverage_check.py $OUT/<LCD>_criteria.resolved.json --inventory $OUT
     --out $OUT/<LCD>_coverage_gaps.md --threshold 0.4
 ```
 
-## Step 8 — traceability — `build_traceability.py` → `locate_rules_in_pdf.py` → `render_traceability_html.py`
-Interactive explorer: click a rule → jump/highlight in the PDF; overlay all rules by
-type; chips count clinical coverage only (admin/out-of-scope behind a toggle).
+## Step 8 — traceability — `build_traceability.py` → `locate_rules_in_pdf.py` → HTML renderers
+Two self-contained explorers (PDFs base64-embedded; internet once for the PDF.js CDN):
+- **Rule-first** (`render_traceability_html.py`): click a rule → jump/highlight in the
+  PDF; overlay all rules by type; chips count clinical coverage only (admin/out-of-scope
+  behind a toggle). Best for "did we capture every rule?"
+- **Pathway-first** (`render_criteria_explorer.py`): each ORDER TYPE is a collapsible
+  section of its criteria; click a criterion → jump to where it came from in the policy.
+  Each criterion visibly separates **📄 Policy** (blue) from **🩺 Clinical interpretation**
+  (amber, reviewer PENDING). Best for "walk the pathways / show me the source of a rule."
+  Criterion→policy link comes from the traceability `became` map (falls back title-wise
+  so identical criteria across codes all link).
 ```
 $PY  scripts/build_traceability.py $OUT/<LCD>_rule_inventory.json $OUT/<LCD>_criteria.resolved.json --out $OUT/<LCD>_traceability.json
 $PYV scripts/locate_rules_in_pdf.py $OUT/<LCD>_rule_inventory.json --pdf $PDFS --out $OUT/<LCD>_rule_locations.json
 $PY  scripts/render_traceability_html.py $OUT/<LCD>_traceability.json --locations $OUT/<LCD>_rule_locations.json \
      --pdf $PDFS --title "<LCD>" --out $OUT/<LCD>_traceability.html
+$PY  scripts/render_criteria_explorer.py $OUT/<LCD>_criteria.resolved.json --traceability $OUT/<LCD>_traceability.json \
+     --locations $OUT/<LCD>_rule_locations.json --pdf $PDFS --title "<LCD>" --out $OUT/<LCD>_criteria_explorer.html
 ```
-`locate` needs pdfplumber (`$PYV`). PDFs are base64-embedded → HTML is self-contained
-(needs internet once for PDF.js CDN). Order: build → locate → render.
+`locate` needs pdfplumber (`$PYV`). Order: build → locate → render (both HTMLs).
+**Policy vs clinical context:** `criterion_view.py` splits each criterion back into the
+policy requirement vs the operational-definition prose the resolver folded inline — the
+docx/pdf and the explorer all use it so the two never read as one blob.
 
 ## Step 9 — `build_machine_copy.py` · platform JSON + code files
 Emits the evaluator copy: the full literal code set inlined in EVERY covered-dx

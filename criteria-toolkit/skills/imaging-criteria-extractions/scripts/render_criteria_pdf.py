@@ -26,6 +26,13 @@ from reportlab.lib import colors
 from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
                                 TableStyle, ListFlowable, ListItem)
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import criterion_view as V  # noqa: E402
+
+POL = colors.HexColor("#2c5cc5")
+CLI = colors.HexColor("#b7791f")
+CLIBG = colors.HexColor("#fbf1de")
+
 TYPE_LABEL = {
     "CLINICAL_INDICATION": "CLINICAL INDICATION", "PRIOR_WORKUP": "PRIOR WORKUP",
     "PRIOR_IMAGING": "PRIOR IMAGING", "METHODOLOGY": "METHODOLOGY", "CONTRAST": "CONTRAST",
@@ -46,12 +53,39 @@ def build(doc, out):
                               spaceBefore=6, spaceAfter=2))
     styles.add(ParagraphStyle("Logic", parent=styles["Normal"], fontSize=9,
                               textColor=colors.HexColor("#333333"), spaceAfter=4))
+    styles.add(ParagraphStyle("PolCap", parent=styles["Normal"], fontSize=7.5,
+                              textColor=POL, spaceBefore=3, spaceAfter=1))
+    styles.add(ParagraphStyle("CliHd", parent=styles["Normal"], fontSize=8.5,
+                              textColor=CLI, spaceBefore=2))
+    styles.add(ParagraphStyle("CliRow", parent=styles["Normal"], fontSize=8.5, leftIndent=4))
     h1, h2, h3 = styles["Heading1"], styles["Heading2"], styles["Heading3"]
     body = styles["BodyText"]
 
+    def clinical_flow(od):
+        """Amber-shaded one-cell table = our interpretation of a vague term."""
+        rows = [[Paragraph(f'🩺 <b>CLINICAL INTERPRETATION</b> — how we read '
+                           f'"{_esc(od.get("term",""))}" '
+                           f'<font size=7 color="#666666">(reviewer {_esc(V.reviewer_status(od))})</font>',
+                           styles["CliHd"])]]
+        for label, val in V.op_def_lines(od):
+            rows.append([Paragraph(f'<b><font color="#b7791f">{_esc(label)}:</font></b> {_esc(val)}',
+                                   styles["CliRow"])])
+        t = Table(rows, colWidths=[6.3 * inch])
+        t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), CLIBG),
+                               ("LINEBEFORE", (0, 0), (0, -1), 2, CLI),
+                               ("TOPPADDING", (0, 0), (-1, -1), 2),
+                               ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                               ("LEFTPADDING", (0, 0), (-1, -1), 8)]))
+        return t
+
     p = doc.get("policy", {})
     story = [Paragraph(f"Qualification Criteria by Code — LCD {_esc(p.get('lcd',''))}", styles["Title"]),
-             Paragraph(_esc(p.get("title", "")), styles["Heading2"]), Spacer(1, 8)]
+             Paragraph(_esc(p.get("title", "")), styles["Heading2"]),
+             Paragraph('<b>How to read this:</b> <font color="#2c5cc5">bulleted items and the blue Source '
+                       'line are the POLICY requirement.</font> <font color="#b7791f">Amber 🩺 blocks are '
+                       "Tennr's CLINICAL INTERPRETATION of a vague term (reviewer PENDING — a clinician "
+                       'signs off before go-live).</font>', body),
+             Spacer(1, 8)]
 
     groups = doc.get("groups") or [{"codes": doc.get("codes", [])}]
     codes = [c["code"] for g in groups for c in g["codes"]]
@@ -103,11 +137,16 @@ def build(doc, out):
                         f"<b>{cr.get('n','')}. {_esc(cr.get('title',''))}</b> &nbsp;·&nbsp; "
                         f"<font size=8>{TYPE_LABEL.get(cr.get('type',''), cr.get('type',''))}</font>",
                         styles["Crit"]))
-                    for line in cr.get("definition", "").split("\n"):
+                    policy_text, op_defs = V.split_criterion(cr)
+                    story.append(Paragraph("📄 POLICY REQUIREMENT", styles["PolCap"]))
+                    for line in policy_text.split("\n"):
                         if line.strip():
                             story.append(Paragraph(_esc(line), body))
                     if cr.get("source"):
                         story.append(Paragraph(f"<i>Source: {_esc(cr['source'])}</i>", styles["Src"]))
+                    for od in op_defs:
+                        story.append(clinical_flow(od))
+                        story.append(Spacer(1, 4))
 
     SimpleDocTemplate(out, pagesize=letter, topMargin=0.7 * inch, bottomMargin=0.7 * inch,
                       leftMargin=0.8 * inch, rightMargin=0.8 * inch,

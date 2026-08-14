@@ -36,6 +36,8 @@ New additive: `context/` (6), `agents/` (6), `automation/manifests/` (13), `skil
 - **7 Archive** ⏳ **PROPOSAL ONLY — awaiting Bruna's approval** (below)
 
 ## Phase 7 — archive proposal (NOT executed)
+> **Reference audit passed** (2026-08-14, `PATH-REFERENCE-AUDIT.md`): no code, config, symlink, or live scheduler depends on any candidate path. Safe to archive on go-ahead.
+
 Move to a dated read-only bundle `~/Documents/Claude/Archives/architecture-migration-2026-08-14/` with a manifest + checksums. Reversible. No permanent deletion.
 
 **A. Generated junk (validated safe — Chat's ARCHIVE list, all regenerable):**

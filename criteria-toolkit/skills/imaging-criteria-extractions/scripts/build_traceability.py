@@ -70,7 +70,9 @@ def build(inv, criteria_doc):
             k = (l["title"], l["definition"][:60])
             if k not in seen:
                 seen.add(k); uniq.append(l)
-        rows.append({"id": r["id"], "type": r["type"], "has_or_group": r.get("has_or_group", False),
+        rows.append({"id": r["id"], "type": r["type"],
+                     "relevance": r.get("relevance", "clinical"),
+                     "has_or_group": r.get("has_or_group", False),
                      "text": r["text"], "coverage": round(score, 2), "status": status,
                      "missing_terms": [t for t in terms if t not in present][:12],
                      "became": uniq[:6]})
@@ -88,11 +90,11 @@ def main(argv=None):
     rows = build(inv, doc)
     Path(args.out).write_text(json.dumps({"rules": rows}, indent=2))
     from collections import Counter
-    ct = Counter(r["status"] for r in rows)
-    clin = [r for r in rows if r["type"] != "ADMINISTRATIVE"]
+    clin = [r for r in rows if r.get("relevance", "clinical") == "clinical"]
     clin_ct = Counter(r["status"] for r in clin)
-    print(f"{len(rows)} rules → {dict(ct)}; clinical only: {dict(clin_ct)}; wrote {args.out}",
-          file=sys.stderr)
+    rel = Counter(r.get("relevance", "clinical") for r in rows)
+    print(f"{len(rows)} rules ({dict(rel)}). CLINICAL coverage (what the chips show): "
+          f"{dict(clin_ct)} of {len(clin)}; wrote {args.out}", file=sys.stderr)
 
 
 if __name__ == "__main__":

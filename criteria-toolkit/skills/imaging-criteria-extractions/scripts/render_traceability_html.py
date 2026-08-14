@@ -82,7 +82,7 @@ PAGE = r"""<!doctype html>
     <input type="search" id="q" placeholder="Search rule text…">
     <select id="ftype"><option value="">All types</option><option>INDICATION</option><option>EXCLUSION</option><option>LIMITATION</option><option>ADMINISTRATIVE</option></select>
     <select id="fstatus"><option value="">All statuses</option><option value="covered">Covered</option><option value="partial">Partial</option><option value="gap">Gap</option></select>
-    <label style="font-size:12px;color:var(--mut)"><input type="checkbox" id="clin"> clinical only</label>
+    <label style="font-size:12px;color:var(--mut)"><input type="checkbox" id="showall"> show admin / out-of-scope</label>
   </div>
 </header>
 <div class="wrap">
@@ -148,7 +148,8 @@ async function overlayAll(name){
   document.getElementById('pdfpick').value=name; document.getElementById('pglabel').textContent='all pages';
   document.getElementById('hint').textContent='every rule shown';
   const doc=await getDoc(name);
-  const byPage={}; DATA.rules.forEach(r=>{if(r.loc&&r.loc.source_pdf===name){(byPage[r.loc.page]=byPage[r.loc.page]||[]).push(r)}});
+  const showall=document.getElementById('showall').checked;
+  const byPage={}; DATA.rules.forEach(r=>{if(r.loc&&r.loc.source_pdf===name&&(showall||(r.relevance||'clinical')==='clinical')){(byPage[r.loc.page]=byPage[r.loc.page]||[]).push(r)}});
   let shown=0;
   for(let p=1;p<=doc.numPages;p++){
     const {cw,scale}=await renderPageCanvas(doc,p,fitScale(await doc.getPage(p)));
@@ -171,8 +172,9 @@ document.getElementById('prev').onclick=()=>{if(!document.getElementById('overla
 document.getElementById('next').onclick=()=>{if(!document.getElementById('overlay').checked)showSingle(cur.pdf,cur.page+1,null)};
 document.getElementById('overlay').onchange=e=>{if(e.target.checked)overlayAll(document.getElementById('pdfpick').value);else showSingle(document.getElementById('pdfpick').value,1,null)};
 document.getElementById('pdfpick').onchange=e=>{if(document.getElementById('overlay').checked)overlayAll(e.target.value);else showSingle(e.target.value,1,null)};
-function chips(rows){const c={covered:0,partial:0,gap:0};rows.forEach(r=>c[r.status]++);
-  document.getElementById('chips').innerHTML=`<span class="chip cov">${c.covered} covered</span><span class="chip par">${c.partial} partial</span><span class="chip gap">${c.gap} gap</span><span class="sub">of ${rows.length} rules</span>`}
+function chips(rows,hidden){const c={covered:0,partial:0,gap:0};rows.forEach(r=>c[r.status]++);
+  const h=hidden?`<span class="sub">· ${hidden} admin / out-of-scope hidden</span>`:'';
+  document.getElementById('chips').innerHTML=`<span class="chip cov">${c.covered} covered</span><span class="chip par">${c.partial} partial</span><span class="chip gap">${c.gap} gap</span><span class="sub">of ${rows.length} clinical rules</span>${h}`}
 function card(r){
   const loc=r.loc?`<span class="loc">${esc(r.loc.source_pdf)} · p${r.loc.page}${r.loc.sharp?'':' ~'}</span>`:`<span class="loc">no location</span>`;
   const became=r.became&&r.became.length?`<div class="became"><h4>Became criteria</h4>`+r.became.map(c=>
@@ -182,6 +184,7 @@ function card(r){
   return `<div class="rule ${S[r.status]}" data-id="${r.id}">
     <div class="rhead"><span class="rid">${r.id}</span><span class="badge b-${r.type}">${r.type}</span>
       <span class="badge b-${S[r.status]}">${r.status.toUpperCase()}</span>
+      ${r.relevance&&r.relevance!=='clinical'?`<span class="badge" style="background:var(--adm);color:#fff">${r.relevance.replace('_',' ')}</span>`:''}
       ${r.has_or_group?'<span class="orflag">[or-group]</span>':''}${loc}</div>
     <div class="rtext">${esc(r.text)}</div><div class="detail">${miss}${became}</div></div>`;
 }
@@ -194,13 +197,16 @@ function selectRule(id,toggle){
 }
 function render(){
   const q=document.getElementById('q').value.toLowerCase(),ft=document.getElementById('ftype').value,
-        fs=document.getElementById('fstatus').value,clin=document.getElementById('clin').checked;
-  const rows=DATA.rules.filter(r=>(!ft||r.type===ft)&&(!fs||r.status===fs)&&(!clin||r.type!=='ADMINISTRATIVE')&&(!q||r.text.toLowerCase().includes(q)));
-  chips(rows);
+        fs=document.getElementById('fstatus').value,showall=document.getElementById('showall').checked;
+  const relOK=r=>showall||(r.relevance||'clinical')==='clinical';
+  const rows=DATA.rules.filter(r=>relOK(r)&&(!ft||r.type===ft)&&(!fs||r.status===fs)&&(!q||r.text.toLowerCase().includes(q)));
+  const hidden=showall?0:DATA.rules.filter(r=>(r.relevance||'clinical')!=='clinical').length;
+  chips(rows,hidden);
   document.getElementById('rules').innerHTML=rows.map(card).join('')||'<p class="none">No rules match.</p>';
   document.querySelectorAll('.rule').forEach(el=>el.onclick=()=>selectRule(el.dataset.id,true));
 }
-['q','ftype','fstatus','clin'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+['q','ftype','fstatus'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+document.getElementById('showall').addEventListener('change',()=>{render(); if(document.getElementById('overlay').checked) overlayAll(document.getElementById('pdfpick').value);});
 const pick=document.getElementById('pdfpick');Object.keys(PDFS).forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;pick.appendChild(o)});
 render();
 showSingle(Object.keys(PDFS)[0],1,null);

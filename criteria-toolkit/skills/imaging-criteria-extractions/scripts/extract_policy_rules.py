@@ -46,8 +46,50 @@ OR_GROUP = re.compile(r"\b(either|at least one of|one of the following|any of th
                       r"following (situations|conditions|indications))\b", re.I)
 
 
+# extra administrative signals: revision history, dates, legal/transmittal refs,
+# payment/billing, equipment/technique description — NOT patient-qualification rules
+ADMIN_EXTRA = re.compile(
+    r"\b(revisions? due to|effective \d|\d{2}/\d{2}/\d{2,4}|notice period|transmittal|"
+    r"\bTN \d|\bCR\d{3,}|reg\.\s*\d|federal register|payment will be allowed|"
+    r"billing and coding|\bMPDI\b|planar image reconstruction|reformatted imaging|"
+    r"full market release|market release phase|signal-to-noise|surface (and other )?"
+    r"(specialty )?coils|gating devices|pre-?market approval|general guidelines|"
+    r"following descriptions|state of the art|separate NCD|sufficient information|"
+    r"provided with claims|medicare administrative contractor|\bMAC\b medical|"
+    r"CMS (is removing|believes|anticipates)|diagnosis or treatment of the)\b", re.I)
+
+# this policy (L37373) explicitly excludes MRA ("Magnetic Resonance Angiography is
+# not addressed"), yet the broad NCD 220.2 drags in MRA/angiography content
+OUT_MODALITY = re.compile(r"\b(MRA|angiograph)\b", re.I)
+
+# body regions OUT of scope for a head/neck imaging order type, and IN-scope terms.
+# (imaging defaults; a broad national NCD pulls in other-region MRA/MRI content)
+OUT_REGION = re.compile(r"\b(chest|thorac|pulmonary|\blung|abdom|pelvi|aort|"
+                        r"lower extremit|peripheral arter|renal arter|iliac|breast)\b", re.I)
+IN_SCOPE = re.compile(r"\b(head|neck|brain|skull|orbit|spine|spinal|sinus|face|maxillofacial|"
+                      r"tmj|jaw|cranial|cervical|intracranial|\bear\b|nasopharyn|oropharyn|"
+                      r"temporal|esophag)\b", re.I)
+
+
+def _deglue(s):
+    # PDF extraction glues words ("MedicareAdministrative", "ofMRA"); restore spaces
+    # so the classifier's word-boundary patterns match.
+    return re.sub(r"([a-z])([A-Z])", r"\1 \2", s)
+
+
+def relevance(s):
+    """clinical (a real in-scope qualification rule) | administrative | out_of_scope."""
+    s = _deglue(s)
+    if ADMIN.search(s) or ADMIN_EXTRA.search(s):
+        return "administrative"
+    if OUT_MODALITY.search(s) or (OUT_REGION.search(s) and not IN_SCOPE.search(s)):
+        return "out_of_scope"
+    return "clinical"
+
+
 def classify(s):
-    if ADMIN.search(s):
+    s = _deglue(s)
+    if ADMIN.search(s) or ADMIN_EXTRA.search(s):
         return "ADMINISTRATIVE"
     if EXCLUSION.search(s):
         return "EXCLUSION"
@@ -76,6 +118,7 @@ def extract(policy_text):
         rules.append({
             "id": f"R{len(rules)+1}",
             "type": classify(s),
+            "relevance": relevance(s),   # clinical | administrative | out_of_scope
             "has_or_group": bool(OR_GROUP.search(s)),
             "text": s,
             "key_terms": sorted(set(terms), key=terms.index)[:10],
@@ -98,7 +141,9 @@ def to_md(rules):
         out.append(f"## {typ} ({len(group)})")
         for r in group:
             orflag = " `[or-group → pathway]`" if r["has_or_group"] else ""
-            out.append(f"- [ ] **{r['id']}**{orflag} {r['text']}")
+            rel = r.get("relevance", "clinical")
+            relflag = "" if rel == "clinical" else f" `[{rel.replace('_', '-')}]`"
+            out.append(f"- [ ] **{r['id']}**{orflag}{relflag} {r['text']}")
         out.append("")
     return "\n".join(out)
 
@@ -114,9 +159,11 @@ def main(argv=None):
     Path(args.out_json).write_text(json.dumps({"rules": rules}, indent=2))
     Path(args.out_md).write_text(to_md(rules))
     from collections import Counter
-    ct = Counter(r["type"] for r in rules)
+    rel = Counter(r["relevance"] for r in rules)
     orn = sum(1 for r in rules if r["has_or_group"])
-    print(f"extracted {len(rules)} rules: {dict(ct)}; {orn} with or-groups (pathways). "
+    print(f"extracted {len(rules)} rules — relevance: {dict(rel)}; {orn} or-groups. "
+          f"({rel['clinical']} clinical rules drive the coverage chips; "
+          f"{rel['administrative']} admin + {rel['out_of_scope']} out-of-scope behind the toggle) "
           f"wrote {args.out_json}, {args.out_md}", file=sys.stderr)
 
 

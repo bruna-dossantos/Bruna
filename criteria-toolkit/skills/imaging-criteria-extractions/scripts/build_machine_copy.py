@@ -38,6 +38,16 @@ def load_codes(path):
     return [(r[0].strip(), (r[1] if len(r) > 1 else "").strip()) for r in raw[start:] if r]
 
 
+def flagged_criteria(doc):
+    groups = doc.get("groups") or [{"codes": doc.get("codes", [])}]
+    for g in groups:
+        for c in g.get("codes", []):
+            for ot in (c.get("order_types") or [{"criteria": c.get("criteria", [])}]):
+                for cr in ot.get("criteria", []):
+                    if cr.get("list_not_inlined"):
+                        yield c, cr
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Build machine copy with inlined code sets")
     ap.add_argument("criteria_json")
@@ -53,48 +63,58 @@ def main(argv=None):
     out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
     lcd = doc.get("policy", {}).get("lcd", "policy")
 
+    # checksum every flagged criterion against the loaded count before anything ships
+    n_flagged = 0
+    for _, cr in flagged_criteria(doc):
+        n_flagged += 1
+        cnt = (cr.get("list_not_inlined") or {}).get("count")
+        if cnt and cnt != n:
+            sys.exit(f"ABORT checksum: criterion '{cr.get('title')}' states {cnt} codes "
+                     f"but file has {n}. Not shipping.")
+
+    codes_only = ", ".join(c for c, _ in codes)
     inline_block = "; ".join(f"{c} — {d}" if d else c for c, d in codes)
+
+    # 1) PLATFORM JSON — full literal set inlined into EVERY flagged criterion, so
+    #    each order type is self-contained for an evaluator with no lookup.
+    plat = copy.deepcopy(doc)
+    for c, cr in flagged_criteria(plat):
+        cr["definition"] = (cr.get("definition", "").rstrip()
+                            + f"\nThe covered diagnoses are one of the following {n} "
+                            f"ICD-10-CM codes: {codes_only}.")
+        cr.pop("list_not_inlined", None)
+    plat_json = out / f"{lcd}_criteria.PLATFORM.json"
+    plat_json.write_text(json.dumps(plat, indent=2))
+
+    # 2) MACHINE MD (human-readable) — full list written once + referenced elsewhere,
+    #    so the file stays a sane size to skim.
+    md = copy.deepcopy(doc)
     injected = referenced = 0
-    written_once = {}  # (list id) -> anchor label; inline the full list only the first time
-    groups = doc.get("groups") or [{"codes": doc.get("codes", [])}]
-    for g in groups:
-        for c in g.get("codes", []):
-            for ot in (c.get("order_types") or [{"criteria": c.get("criteria", [])}]):
-                for cr in ot.get("criteria", []):
-                    lni = cr.get("list_not_inlined")
-                    if not lni:
-                        continue
-                    if lni.get("count") and lni["count"] != n:
-                        sys.exit(f"ABORT checksum: criterion '{cr.get('title')}' states "
-                                 f"{lni['count']} codes but file has {n}. Not shipping.")
-                    key = lni.get("what", "codes")
-                    if key not in written_once:
-                        # first occurrence: write the full list out
-                        cr["definition"] = (cr.get("definition", "").rstrip()
-                                            + f"\nCovered ICD-10-CM diagnoses (all {n}): "
-                                            + inline_block + ".")
-                        written_once[key] = f"{c['code']} · {cr.get('title')}"
-                        injected += 1
-                    else:
-                        # later occurrences: reference the one written-out copy (identical set)
-                        cr["definition"] = (cr.get("definition", "").rstrip()
-                                            + f"\nCovered ICD-10-CM diagnoses (all {n}): the same "
-                                            f"set written out under {written_once[key]} "
-                                            f"(also in L37373_group1_dx_codes.csv).")
-                        referenced += 1
-                    cr.pop("list_not_inlined", None)
-
-    # full machine criteria doc
+    written_once = {}
+    for c, cr in flagged_criteria(md):
+        key = (cr.get("list_not_inlined") or {}).get("what", "codes")
+        if key not in written_once:
+            cr["definition"] = (cr.get("definition", "").rstrip()
+                                + f"\nCovered ICD-10-CM diagnoses (all {n}): {inline_block}.")
+            written_once[key] = f"{c['code']} · {cr.get('title')}"
+            injected += 1
+        else:
+            cr["definition"] = (cr.get("definition", "").rstrip()
+                                + f"\nCovered ICD-10-CM diagnoses (all {n}): the same set written "
+                                f"out under {written_once[key]} (also in {lcd}_group1_dx_codes.csv).")
+            referenced += 1
+        cr.pop("list_not_inlined", None)
     machine_md = out / f"{lcd}_criteria_MACHINE_full_codes.md"
-    machine_md.write_text(render_criteria_doc.render(doc))
-    # paste-ready codes block
-    codes_txt = out / f"{lcd}_group1_dx_codes.txt"
-    codes_txt.write_text(", ".join(c for c, _ in codes) + "\n")
+    machine_md.write_text(render_criteria_doc.render(md))
 
-    print(f"codes: {n} (checksum OK) | written out once in {injected} criterion(s), "
-          f"referenced in {referenced} more", file=sys.stderr)
-    print(f"wrote {machine_md.name} ({machine_md.stat().st_size//1024} KB) and {codes_txt.name}",
-          file=sys.stderr)
+    # 3) paste-ready codes block
+    codes_txt = out / f"{lcd}_group1_dx_codes.txt"
+    codes_txt.write_text(codes_only + "\n")
+
+    print(f"codes: {n} (checksum OK across {n_flagged} covered-dx criteria)", file=sys.stderr)
+    print(f"wrote {plat_json.name} ({plat_json.stat().st_size//1024} KB — full list in all "
+          f"{n_flagged} criteria), {machine_md.name} ({machine_md.stat().st_size//1024} KB — "
+          f"list once, referenced in {referenced}), {codes_txt.name}", file=sys.stderr)
 
 
 if __name__ == "__main__":

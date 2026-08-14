@@ -202,6 +202,13 @@ you tell fast.
 - `<LCD>_criteria_by_code.md` — criteria doc, order types per code with logic.
 - `extraction_fields.csv` — per-criterion extraction fields, atom-based recall sets + ICD.
 - `coverage_gaps.md` — completeness gap report (criteria vs the rule inventory).
+- `<LCD>_criteria.PLATFORM.json` — the evaluator copy: big code sets inlined in FULL
+  in every covered-diagnosis criterion (the evaluator has no lookup, so each order
+  type must be self-contained). Human `criteria.json` keeps the short call-out.
+  Built by `build_machine_copy.py --codes <canonical.csv>` (checksums the count vs
+  the criterion's `list_not_inlined.count`; aborts on mismatch). Also emits a
+  readable `_MACHINE_full_codes.md` (list once + referenced) and a paste-ready
+  `_dx_codes.txt`.
 
 Save deliverables under `Documents/Claude/Projects/Criteria Updates/Imaging Vertical/`.
 

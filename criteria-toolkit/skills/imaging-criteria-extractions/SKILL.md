@@ -141,6 +141,24 @@ If a code only has a flat `criteria` list, it's wrapped into one default order t
 one order type. The script also **lints**: it flags an order type whose criteria mix
 lifecycle language (both "initial" and "continuation") — a sign it should be split.
 
+### Step 2.5 — Resolve ambiguous terms (pin operational definitions)
+
+```bash
+python3 scripts/resolve_ambiguous_terms.py detect criteria.with_order_types.json --out terms.json
+# model authors operational definitions for the NEEDS_OPERATIONAL_DEFINITION terms -> resolutions.json
+python3 scripts/resolve_ambiguous_terms.py apply criteria.with_order_types.json \
+    --resolutions resolutions.json --out criteria.resolved.json --report resolver_report.md
+```
+
+The upstream fix for undefined decisive terms (the "active SPMS" problem). `detect`
+finds decisive lexicon terms per criterion and flags which the policy already
+defines (e.g. "unusual duration = >2 weeks" → left alone). For the undefined ones,
+the model authors an **operational definition** (rule + positives/negatives + time
+window + treatment + missing-data handling) and `apply` embeds it inline in the
+criterion; genuinely undecidable terms are **escalated** (excluded from scoring, not
+improvised). This is the "explanation that belongs in the criterion" — a *decision*,
+not a dictionary gloss. Feed `criteria.resolved.json` to Steps 3–4.
+
 ### Step 3 — Render the criteria doc
 
 ```bash

@@ -1,0 +1,14 @@
+# Automation: weekly-one-on-one-prep
+- **schedule:** UNKNOWN — confirm (name says "weekly"; scope is "next 7 days"; no exact day/time/cron stated)
+- **canonical_skill:** one-on-one-prep
+- **parameters:**
+  - scope: all upcoming 1:1s in the next 7 days
+  - Meeting Notes DB data source: `collection://1b4eb680-c7fc-802d-94f6-000b412c3dd0`
+  - People Directory data source: `collection://ae695dac-2bd0-4b7b-94bf-6ff710d8d3c5`
+  - Bruna Notion user ID: `user://1b1d872b-594c-81ca-a437-000231027524`
+  - Bruna Slack ID: `U08H0TF168L`
+- **source_scope:** Google Calendar (next 7 days, `q="1:1"`, valid = title contains 1:1/1on1/sync/"Name & Bruna" and exactly 2 human attendees); Notion People Directory page (open follow-ups, agenda, mood, role); last 2 prior meeting notes per person; Slack DMs + `from:[email]` / name searches for escalations, blockers, wins, unanswered asks
+- **output_destination:** Notion Meeting Notes DB (`collection://1b4eb680-c7fc-802d-94f6-000b412c3dd0`) — one fully-populated meeting note per 1:1, with Carried Forward / Discussion / Standing Questions / Growth & Coaching / Notes / Action Items sections
+- **failure_behavior:** if a person isn't in the People Directory, create the note anyway and flag it; report any people who couldn't be resolved in the summary
+- **original_source_path:** /Users/brunadossantos/.claude/scheduled-tasks/weekly-one-on-one-prep/SKILL.md
+- **notes:** This is the ONLY fully-specified wrapper — the others are one-liners. It lives in `~/.claude/scheduled-tasks/` (not `~/Documents/Claude/Scheduled/`). Contains a full embedded procedure (Steps 1–5), key IDs, and a Known People table (5 direct reports + 7 others). Almost certainly the same 1:1-prep automation as `11-prep` and `one-on-one-prep` — see INDEX consolidation section. Treat this manifest's parameters/IDs as the canonical config for the consolidated 1:1-prep automation.

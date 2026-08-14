@@ -1,0 +1,31 @@
+# Skill inventory — authored SKILL.md files (excludes git worktrees, plugin marketplaces, existing archives)
+# Captured 2026-08-14
+
+/Users/brunadossantos/.claude/scheduled-tasks/weekly-one-on-one-prep/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/11-prep/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/daily-brief/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/follow-up-sundays/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/follow-up-wednesday/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/meeting-notes-review-afternoon/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/meeting-notes-review-night/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/meeting-notes-review/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/one-on-one-prep/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/slack-triage-afternoon/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/slack-triage/SKILL.md
+/Users/brunadossantos/Documents/Claude/Scheduled/team-pulse/SKILL.md
+/Users/brunadossantos/Documents/Claude/skills/Bruna Central Database/SKILL.md
+/Users/brunadossantos/Documents/Claude/skills/Bruna Central Database/matcher-agendas/SKILL.md
+/Users/brunadossantos/Documents/Claude/skills/Bruna Central Database/matcher-chat/SKILL.md
+/Users/brunadossantos/Documents/Claude/skills/Bruna Central Database/matcher-linear/SKILL.md
+/Users/brunadossantos/Documents/Claude/skills/Bruna Central Database/matcher-meetings/SKILL.md
+/Users/brunadossantos/Documents/Claude/skills/Bruna Central Database/matcher-slack/SKILL.md
+/Users/brunadossantos/Documents/Claude/skills/criteria-reuse-finder/SKILL.md
+/Users/brunadossantos/Documents/Claude/skills/criteria-writer-imaging/SKILL.md
+/Users/brunadossantos/Documents/Claude/skills/criteria-writer/SKILL.md
+/Users/brunadossantos/Projects/Bruna/criteria-toolkit/skills/imaging-criteria-extractions/SKILL.md
+/Users/brunadossantos/Projects/Bruna/criteria-toolkit/skills/insurance-ticket-sync/SKILL.md
+/Users/brunadossantos/Projects/Bruna/criteria-toolkit/skills/reconcile-order-rules/SKILL.md
+/Users/brunadossantos/Projects/Bruna/criteria-toolkit/skills/refresh-insurance-issues/SKILL.md
+/Users/brunadossantos/Projects/Bruna/skills/daily-briefing/SKILL.md
+/Users/brunadossantos/Projects/Bruna/skills/one-on-one-prep/SKILL.md
+/Users/brunadossantos/Projects/Bruna/skills/slack-reply-triage/SKILL.md

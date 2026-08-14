@@ -1,0 +1,11 @@
+11-prep
+daily-brief
+follow-up-sundays
+follow-up-wednesday
+meeting-notes-review
+meeting-notes-review-afternoon
+meeting-notes-review-night
+one-on-one-prep
+slack-triage
+slack-triage-afternoon
+team-pulse

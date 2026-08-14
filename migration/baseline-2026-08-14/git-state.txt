@@ -1,0 +1,45 @@
+== worktrees ==
+/Users/brunadossantos/Projects/Bruna                                               2cb459a [claude/architecture-migration]
+/Users/brunadossantos/projects/Bruna/.claude/worktrees/adoring-brattain-7e3581     b95662d (detached HEAD)
+/Users/brunadossantos/projects/Bruna/.claude/worktrees/amazing-pasteur-126a95      aca0d58 [claude/reconcile-order-rules-c61f72]
+/Users/brunadossantos/projects/Bruna/.claude/worktrees/angry-feistel               59f5883 [claude/angry-feistel]
+/Users/brunadossantos/projects/Bruna/.claude/worktrees/gifted-napier-10e155        c75bed8 (detached HEAD)
+/Users/brunadossantos/projects/Bruna/.claude/worktrees/goofy-proskuriakova-f0867a  f59e331 (detached HEAD)
+/Users/brunadossantos/projects/Bruna/.claude/worktrees/inspiring-cannon-a54635     c75bed8 (detached HEAD)
+/Users/brunadossantos/projects/Bruna/.claude/worktrees/keen-carson-6d7b2d          c75bed8 [claude/keen-carson-6d7b2d]
+/Users/brunadossantos/projects/Bruna/.claude/worktrees/wonderful-lewin-26f200      c75bed8 [claude/cleanup-claude-files-1bff9e]
+
+== branches ==
+  claude/93925-coverage-comparison-714319
+  claude/adoring-brattain-7e3581
+  claude/affectionate-archimedes-665d14
++ claude/angry-feistel
+* claude/architecture-migration
+  claude/awesome-taussig-760077
+  claude/awesome-wu
+  claude/betternight-payors-mapping-946b11
+  claude/chief-of-staff-plugin-setup
++ claude/cleanup-claude-files-1bff9e
+  claude/condescending-panini-a5f4a0
+  claude/criteria-toolkit
+  claude/elegant-sutherland-2729a6
+  claude/gracious-banzai-675e27
+  claude/hcpc-linear-projects-mapping-cdfcfe
+  claude/inspiring-cannon-a54635
+  claude/iron-agents-linear-search-8bc376
++ claude/keen-carson-6d7b2d
+  claude/quizzical-elgamal-3c52ba
++ claude/reconcile-order-rules-c61f72
+  claude/service-line-order-codes-9893ca
+  claude/slack-reply-triage-CcFwS
+  claude/tennr-eob-remark-codes-6db77c
+  main
+  remotes/origin/HEAD -> origin/claude/slack-reply-triage-CcFwS
+  remotes/origin/claude/angry-feistel
+  remotes/origin/claude/chief-of-staff-plugin-setup
+  remotes/origin/claude/criteria-toolkit
+  remotes/origin/claude/fervent-turing-5AAtk
+  remotes/origin/claude/gifted-fermat-oXPGh
+  remotes/origin/claude/one-on-one-prep-GWTUa
+  remotes/origin/claude/slack-reply-triage-CcFwS
+  remotes/origin/main

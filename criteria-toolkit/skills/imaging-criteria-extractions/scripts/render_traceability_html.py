@@ -76,7 +76,7 @@ PAGE = r"""<!doctype html>
 <body>
 <header>
   <h1>__TITLE__</h1>
-  <div class="sub">Click a rule → jump to and highlight where it appears in the policy. Or turn on <b>Overlay all</b> to see every rule at once, color-coded by type — blank policy text = not captured as a rule (what got missed).</div>
+  <div class="sub">Click a rule → jump to and highlight where it appears in the policy. Or turn on <b>Overlay all</b> to see every captured rule at once, color-coded by type. White = non-rule text (background, definitions, billing, the ICD code table) — a policy is mostly prose around a few decisive rules, so white is expected, not a gap.</div>
   <div class="chips" id="chips"></div>
   <div class="controls">
     <input type="search" id="q" placeholder="Search rule text…">
@@ -99,7 +99,7 @@ PAGE = r"""<!doctype html>
       <span class="lk"><span class="sw" style="background:var(--exc)"></span>Exclusion</span>
       <span class="lk"><span class="sw" style="background:var(--lim)"></span>Limitation</span>
       <span class="lk"><span class="sw" style="background:var(--adm)"></span>Administrative</span>
-      <span style="margin-left:auto;color:#b9bdc2">blank text = no rule captured</span>
+      <span style="margin-left:auto;color:#b9bdc2">white = non-rule text (background · definitions · billing · code tables), not a gap</span>
     </div>
     <div id="scroll" style="flex:1;overflow:auto;width:100%"></div>
   </div>
@@ -149,15 +149,23 @@ async function overlayAll(name){
   document.getElementById('hint').textContent='every rule shown';
   const doc=await getDoc(name);
   const byPage={}; DATA.rules.forEach(r=>{if(r.loc&&r.loc.source_pdf===name){(byPage[r.loc.page]=byPage[r.loc.page]||[]).push(r)}});
+  let shown=0;
   for(let p=1;p<=doc.numPages;p++){
     const {cw,scale}=await renderPageCanvas(doc,p,fitScale(await doc.getPage(p)));
     scroll.appendChild(cw);
     (byPage[p]||[]).forEach(r=>{const c=TC[r.type]||'122,130,144';
-      (r.loc.rects||[r.loc.bbox]).forEach(rect=>addRect(cw,rect,scale,'ov',
-        {background:'rgba('+c+',.25)',outline:'1.5px solid rgb('+c+')'},
-        r.id+' · '+r.type+' · '+r.text.slice(0,90)).onclick=()=>selectRule(r.id,false));
+      // shade the rule's WHOLE footprint (first→last matched line), not just one phrase,
+      // so a captured rule reads as a block. Left/right padded to the text column.
+      const rects=r.loc.rects||[r.loc.bbox];
+      const x0=Math.min(...rects.map(x=>x[0])), top=Math.min(...rects.map(x=>x[1]));
+      const x1=Math.max(...rects.map(x=>x[2])), bot=Math.max(...rects.map(x=>x[3]));
+      addRect(cw,[x0,top,x1,bot],scale,'ov',
+        {background:'rgba('+c+',.22)',outline:'1.5px solid rgb('+c+')'},
+        r.id+' · '+r.type+' · '+r.text.slice(0,90)).onclick=()=>selectRule(r.id,false);
+      shown++;
     });
   }
+  document.getElementById('hint').textContent=shown+' rules shaded · white = non-rule text (background, definitions, billing, code tables)';
 }
 document.getElementById('prev').onclick=()=>{if(!document.getElementById('overlay').checked)showSingle(cur.pdf,cur.page-1,null)};
 document.getElementById('next').onclick=()=>{if(!document.getElementById('overlay').checked)showSingle(cur.pdf,cur.page+1,null)};

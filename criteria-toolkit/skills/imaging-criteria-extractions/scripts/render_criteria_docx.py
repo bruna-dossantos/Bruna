@@ -143,10 +143,13 @@ def build(doc_json, out):
                      "(reviewer PENDING — a clinician signs off before go-live)."); l3.font.size = Pt(9); l3.font.color.rgb = AMBER_INK
 
     codes = [c["code"] for _, c in _codes(doc_json)]
-    meta = [("Service Line", "Imaging / Radiology — CT & MRI, Head and Neck"),
-            ("Plan Category", "MEDICARE"),
-            ("Policy Source", f"LCD {p.get('lcd','')}; {p.get('ncd_baseline','')}; "
-                              f"{p.get('article','')}"),
+    # metadata comes from the policy block so the doc is correct for ANY policy;
+    # only the generic imaging fallbacks are hardcoded.
+    plan_category = p.get("plan_category") or p.get("payer") or ("MEDICARE" if p.get("lcd") else "—")
+    meta = [("Service Line", p.get("service_line") or "Imaging / Radiology"),
+            ("Plan Category", plan_category),
+            ("Policy Source", "; ".join(x for x in [f"LCD {p['lcd']}" if p.get("lcd") else "",
+                                                      p.get("ncd_baseline", ""), p.get("article", "")] if x)),
             ("HCPCS Codes Covered", ", ".join(codes))]
     mt = d.add_table(rows=len(meta), cols=2); mt.style = "Light Grid Accent 1"
     for i, (k, v) in enumerate(meta):

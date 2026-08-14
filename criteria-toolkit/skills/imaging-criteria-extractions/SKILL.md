@@ -64,10 +64,10 @@ level up (it spans all policies), not inside a run folder.
 - **API keys** present: `~/Documents/Claude/Projects/Credentials/umls_api_key.txt`
   and `BioPortal_API.txt`. ([[umls-term-glossing]])
 - **venv** (for docx/pdf/pdfplumber steps): `python3 -m venv .venv && .venv/bin/pip
-  install python-docx reportlab pdfplumber` (already created; gitignored).
+  install -r requirements.txt` (already created; gitignored).
 - **Two interpreters** — matters per step:
-  - `PY=python3` — stdlib steps + API steps (needs `requests`, already on system).
-  - `PYV=.venv/bin/python` — needs python-docx / reportlab / pdfplumber.
+  - `PY=python3` — stdlib steps + API steps (UMLS/BioPortal via stdlib `urllib`; no pip deps).
+  - `PYV=.venv/bin/python` — needs python-docx / reportlab / pdfplumber (see `requirements.txt`).
 - **Shared clients** in `criteria-toolkit/scripts/` (`umls_client.py`,
   `bioportal_client.py`, `expand_concepts.py`, `umls_synonyms.json`); skill scripts import them.
 - Set `SRC` = extracted policy `.txt`s, `PDFS` = source PDFs, `CODES` = canonical dx CSV,
@@ -75,13 +75,16 @@ level up (it spans all policies), not inside a run folder.
 
 ## Interchange format — `criteria.json`
 ```
-{ "policy": {lcd,title,payer,ncd_baseline,article, doc_criteria:[...]},
+{ "policy": {lcd,title,payer,ncd_baseline,article, service_line?, plan_category?, doc_criteria:[...]},
   "groups": [{ "group_label", "codes": [{
      code, description, modality, contrast,
      "order_types": [{ order_type, context{stage,condition,product,category},
                        logic_expression, criteria: [{n,title,type,definition,source,
                        list_not_inlined?}] }] }]}]}
 ```
+`service_line` / `plan_category` are optional doc-header labels — set them per policy
+(they fall back to "Imaging / Radiology" and payer-or-MEDICARE), so the rendered doc is
+labeled correctly for ANY policy, not just the one it was first built on.
 `type` enum: CLINICAL_INDICATION | PRIOR_WORKUP | PRIOR_IMAGING | METHODOLOGY |
 CONTRAST | THERAPY_LINKAGE | FREQUENCY | DOCUMENTATION | EXCLUSION | SPECIMEN.
 

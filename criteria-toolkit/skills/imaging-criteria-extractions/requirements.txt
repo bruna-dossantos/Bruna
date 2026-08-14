@@ -1,0 +1,6 @@
+# Third-party deps for the venv steps (render docx/pdf, locate rules in PDF).
+# Everything else runs on the system Python with only the standard library
+# (the UMLS / BioPortal clients use urllib, not requests).
+python-docx
+reportlab
+pdfplumber

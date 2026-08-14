@@ -89,7 +89,7 @@ def build(doc, out):
 
     groups = doc.get("groups") or [{"codes": doc.get("codes", [])}]
     codes = [c["code"] for g in groups for c in g["codes"]]
-    meta = [["Service Line", "Imaging / Radiology"],
+    meta = [["Service Line", _esc(p.get("service_line") or "Imaging / Radiology")],
             ["Policy Source", _esc(f"LCD {p.get('lcd','')}; {p.get('ncd_baseline','')}; {p.get('article','')}")],
             ["Payer", _esc(p.get("payer", ""))],
             ["HCPCS Codes Covered", _esc(", ".join(codes))]]

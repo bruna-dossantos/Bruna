@@ -138,9 +138,13 @@ def cmd_apply(args):
            f"- **Left alone (policy already defines):** {len(defined)}",
            f"- **Escalated (unresolved — excluded from scoring):** {len(escalated)}", ""]
     if applied:
-        rep.append("## Pinned (now decided in the criterion)")
-        for title, term, rev in applied:
-            rep.append(f"- **{term}** → {title}  _(reviewer: {rev or 'PENDING sign-off'})_")
+        from collections import Counter
+        distinct = Counter((term, title) for title, term, _ in applied)
+        rep.append(f"## Pinned (now decided in the criterion) — {len(distinct)} distinct, "
+                   f"applied across {len(applied)} order-type criteria")
+        for (term, title), cnt in distinct.items():
+            rep.append(f"- **{term}** → {title}  _(in {cnt} order-type criteria; "
+                       f"reviewer: PENDING sign-off)_")
         rep.append("")
     if defined:
         rep.append("## Policy-defined (left as-is)")

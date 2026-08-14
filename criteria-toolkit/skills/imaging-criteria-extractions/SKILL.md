@@ -214,6 +214,25 @@ policy text with `--policy` instead of `--inventory`.) A low score can be a real
 gap or an intentionally-omitted administrative requirement — the type tag helps
 you tell fast.
 
+### Step 7 — Close the loop (one command)
+
+```bash
+python3 scripts/close_loop.py criteria.json --inventory rule_inventory.json \
+    --resolutions resolutions.json --codes codes.csv \
+    --accepted-gaps accepted_gaps.json --out-dir DIR --pyv .venv/bin/python \
+    --pdfs a.pdf b.pdf --render
+```
+
+The find → fix → re-check controller. It applies the operational definitions, then
+checks for (a) undefined decisive terms with no resolution and (b) uncovered
+**clinical** rules (admin/out-of-scope excluded). Converged = both clean. If not, it
+emits a worklist of exactly what still needs authoring; the model/config-owner tops
+up `resolutions.json` (new operational definitions), re-authors the gap criteria, or
+accepts a residual in `accepted_gaps.json` (out-of-scope / matcher-miss, with a
+reason) — then re-runs. On convergence (or `--render`) it regenerates the whole
+downstream so nothing drifts. Authoring stays human/model-in-the-loop by design;
+everything else (apply, check, converge-decision, worklist, regenerate) is automated.
+
 ## Outputs
 
 - `rule_inventory.md` / `.json` — the policy's full rule list (Step 0 checklist).

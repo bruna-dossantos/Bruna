@@ -47,9 +47,13 @@ def _iter_criteria(doc):
                     yield c, ot, cr
 
 
-def detect(doc):
+def detect(doc, skip_resolved=False):
     seen, out = set(), []
     for c, ot, cr in _iter_criteria(doc):
+        # a criterion that already carries operational definitions is resolved — its
+        # injected definition prose contains lexicon words that would re-trigger here.
+        if skip_resolved and cr.get("operational_definitions"):
+            continue
         defn = cr.get("definition", "")
         low = defn.lower()
         for term in LEXICON:

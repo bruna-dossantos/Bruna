@@ -67,7 +67,7 @@ def criterion_payload(code, ot_label, cr, idx):
     hits = _lookup(code, ot_label, cr, idx)
     locs = [{"source_pdf": h["loc"].get("source_pdf"), "page": h["loc"].get("page"),
              "rects": h["loc"].get("rects") or [h["loc"].get("bbox")],
-             "rule_id": h["rule_id"], "match": h["match"], "text": h["text"][:400]}
+             "rule_id": h["rule_id"], "match": h["match"]}
             for h in hits if h.get("loc")]
     return {
         "n": cr.get("n"), "title": cr.get("title", ""), "type": cr.get("type", ""),
@@ -77,6 +77,17 @@ def criterion_payload(code, ot_label, cr, idx):
                      "lines": V.op_def_lines(od)} for od in ods],
         "locs": locs,
     }
+
+
+def _fmt_context(ctx):
+    """Order-type discriminator dict → a short readable line (non-null parts)."""
+    if not ctx:
+        return ""
+    if isinstance(ctx, str):
+        return ctx
+    labels = [("stage", ""), ("condition", ""), ("product", "product: "), ("category", "category: ")]
+    parts = [f"{pfx}{ctx[k]}" for k, pfx in labels if ctx.get(k)]
+    return " · ".join(parts)
 
 
 def build_data(criteria, trace):
@@ -94,7 +105,7 @@ def build_data(criteria, trace):
                 label = ot.get("order_type", "Qualification")
                 crits = [criterion_payload(c["code"], label, cr, idx) for cr in ot.get("criteria", [])]
                 mapped = sum(1 for cr in crits if cr["locs"])
-                pathways.append({"order_type": label, "context": ot.get("context", ""),
+                pathways.append({"order_type": label, "context": _fmt_context(ot.get("context")),
                                  "logic_expression": ot.get("logic_expression"),
                                  "criteria": crits, "n_criteria": len(crits), "n_mapped": mapped})
             codes.append({"code": c["code"], "description": c.get("description", ""),
@@ -193,7 +204,7 @@ PAGE = r"""<!doctype html>
 <script>
 const DATA=__DATA__, PDFS=__PDFS__;
 pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
-function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function b64u(b64){const bin=atob(b64);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return a}
 const cache={}; let cur={pdf:null,page:1};
 async function getDoc(n){if(!cache[n])cache[n]=await pdfjsLib.getDocument({data:b64u(PDFS[n])}).promise;return cache[n]}

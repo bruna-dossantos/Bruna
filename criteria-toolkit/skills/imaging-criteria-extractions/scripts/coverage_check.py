@@ -61,11 +61,32 @@ ADMIN = re.compile(
 ICD_TOKEN = re.compile(r"\b[A-TV-Z]\d{2}(\.\d+)?\b")
 
 
+# Nested list markers (lowercase letter, digit, roman) — sub-items that belong to
+# the parent rule. A top-level "A." / "B." (uppercase) starts a NEW rule.
+NESTED_MARK = re.compile(r"^(?:[a-z]|[0-9]{1,2}|[ivx]{1,4})[.)]\s")
+
+
 def sentences(text):
+    """
+    Segment policy text into coherent rule units. Split only on a real sentence
+    period (>=3 word-chars before the '.', a capital after) — never on ':' or a
+    list marker like '1.' / 'A.'. Then merge continuations back into their parent
+    so enumerations stay whole: a lead-in ending ':', a NESTED marker (a./b./1./2.),
+    a short tail, or a lowercase start. Top-level items (A./B./C.) stay separate.
+    """
     text = re.sub(r"\s+", " ", text)
-    # split on sentence enders and list markers
-    parts = re.split(r"(?<=[.:;])\s+(?=[A-Z0-9])|(?<=\w)\s*[••]\s*", text)
-    return [p.strip() for p in parts if len(p.strip()) > 25]
+    # PDF extraction often glues a sentence end to the next start ("diagnosis.B.");
+    # restore a space so glued top-level boundaries can split.
+    text = re.sub(r"([a-z]{3})\.([A-Z])", r"\1. \2", text)
+    parts = re.split(r"(?<=[A-Za-z0-9]{3})[.]\s+(?=[A-Z])", text)
+    merged = []
+    for f in (p.strip() for p in parts if p.strip()):
+        if merged and (merged[-1].rstrip().endswith(":") or NESTED_MARK.match(f)
+                       or len(f) < 40 or f[:1].islower()):
+            merged[-1] = merged[-1].rstrip() + " " + f
+        else:
+            merged.append(f)
+    return [m for m in merged if len(m) > 25]
 
 
 def content_terms(s):

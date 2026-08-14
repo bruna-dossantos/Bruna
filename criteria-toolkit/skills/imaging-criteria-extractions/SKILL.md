@@ -1,267 +1,202 @@
 ---
 name: imaging-criteria-extractions
 description: >
-  Generate imaging/testing qualification criteria from a policy AND the matching
-  extraction fields Tennr needs to evaluate them — the gap the criteria-writer
-  skill leaves ("Tennr auto-generates extraction fields downstream"). Runs the
-  four-step flow: (1) write criteria with the imaging prompt + criteria-writer,
-  (2) render a "Qualification Criteria by Code" doc, (3) detect the clinical
-  concepts in each criterion via the BioPortal/UMLS ontology APIs, (4) emit a
-  per-criterion extraction-fields CSV, then enrich the illustrative rows with
-  model-proposed, ontology-validated concept sets. Use when Bruna says "build
-  imaging criteria and extractions", "generate extraction fields for this
-  policy", "what extractions does this criteria need", "run the imaging
-  criteria flow", or drops an imaging/testing LCD/policy and wants criteria +
-  extraction fields. Imaging/testing (CT, MRI, DXA, molecular) — not DME/infusion.
+  End-to-end pipeline to turn an imaging/testing policy (Medicare LCD/NCD +
+  companion article, or a payer CPB) into Tennr qualification criteria AND the
+  extraction fields that evaluate them — order types, operational definitions for
+  vague terms, UMLS-atom recall sets, a Tennr-format criteria doc/PDF, a coverage
+  check, a click-through traceability HTML, a platform JSON with big code sets
+  inlined, and a find→fix→re-check loop. Use when Bruna says "run the imaging
+  criteria flow", "build imaging criteria and extractions", "generate extraction
+  fields for this policy", or drops an imaging/testing LCD/policy. Imaging/testing
+  (CT, MRI, DXA, molecular) — NOT DME/infusion.
 ---
 
-# Imaging Criteria + Extraction Fields
+# Imaging Criteria + Extractions — full pipeline
 
-Two things ship together here: the **criteria** (the clinical requirements, left
-side) and the **extraction fields** (the recall-only "go find" directives that
-pull evidence from the chart). The `criteria-writer` skill deliberately writes
-criteria only — Tennr auto-generates extraction fields downstream — and for
-imaging that auto-generation is the weak link, because illustrative lists
-("suspected spinal infection or malignancy", "such as motor weakness…") need to
-be broadened so the chart's real phrasing (spondylodiscitis, epidural abscess)
-still matches. This skill produces both and makes the broadening explicit,
-reviewable, and testable.
+Turn a policy into criteria + extraction fields, then verify it. **Run the steps in
+order.** Each step below maps to one script: what it's for, the command, its
+inputs/outputs, and what must run before it. `close_loop.py` (Step 10) chains the
+downstream steps and drives find → fix → re-check to convergence.
 
-## Core principle
+## Deliverables (what a full run produces, in `OUT/`)
+- `<LCD>_rule_inventory.json/.md` — every policy rule, classified (Step 0)
+- `<LCD>_criteria.json` — the criteria (human copy: code call-out, not the dump)
+- `<LCD>_resolutions.json` + `<LCD>_resolver_report.md` — operational definitions
+- `<LCD>_criteria_by_code.md/.docx/.pdf` — Tennr-format criteria doc (PDF = give to Tennr)
+- `<LCD>_extraction_fields.csv` + `<LCD>_extraction_fields_by_code.md/.docx` — extraction fields
+- `<LCD>_coverage_gaps.md` — criteria-vs-inventory gaps
+- `<LCD>_traceability.html` — interactive policy→rules→criteria explorer
+- `<LCD>_criteria.PLATFORM.json` + `<LCD>_group1_dx_codes.csv/.json/.txt` — evaluator copy w/ codes inlined
+- `<LCD>_close_loop_report.md` — convergence report / worklist
 
-**The generation model decides a list is illustrative** (not a pre-pass). When it
-does, the ontology expansion goes into the **extraction field** — a flat recall
-set, no embedded reasoning — never into the criterion prose. The criterion stays
-clean; recall lives one layer down. This fits the platform constraint that
-extraction fields are simple "go find" directives.
+## Core principles (the decisions this encodes)
+- **Order type = the qualification unit.** A code may have several; split when the
+  criteria SET differs (stage/diagnosis/product/category), else keep as an OR inside
+  one order type. (See [[order-types-model]].)
+- **Operational definitions live in the criterion; recall synonyms live in the
+  extraction fields; dictionary glosses are dropped.** ([[ambiguous-term-resolver]])
+- **Code sets:** human doc = short call-out; **platform JSON = full literal set
+  inlined** (the evaluator has no lookup), count-checksummed.
+- **Generation is a loop, not one pass** — list rules first, cover them, check back,
+  regenerate. The evaluator is strict + per-criterion + missing→FALSE, so criteria
+  must be self-contained with explicit pass-throughs. ([[criteria-evaluator]])
 
-Ontology is a **validator, not a generator**: raw ontology search underdelivers
-(it returns rare edge concepts and misses the common ones). The model proposes
-the clinical realizations; the ontology confirms each is real and attaches codes.
-
-## Inputs
-
-- An imaging/testing policy (Medicare LCD/NCD + companion article, or a payer CPB)
-  — text or PDF.
-- The requested HCPCS/CPT codes.
-- Payer / plan-category / state context.
-- The imaging prompt (`Imaging_Testing_prompt_SHIP_NOW.md`, or `_REVISED.md` once
-  the schema fields land).
-
-## Prereqs
-
-- API keys present: `~/Documents/Claude/Projects/Credentials/BioPortal_API.txt`
-  and `umls_api_key.txt`. See [[umls-term-glossing]].
-- Shared clients live in `criteria-toolkit/scripts/`
-  (`bioportal_client.py`, `umls_client.py`, `expand_concepts.py`); the skill
-  scripts import them.
+## Setup (once)
+- **API keys** present: `~/Documents/Claude/Projects/Credentials/umls_api_key.txt`
+  and `BioPortal_API.txt`. ([[umls-term-glossing]])
+- **venv** (for docx/pdf/pdfplumber steps): `python3 -m venv .venv && .venv/bin/pip
+  install python-docx reportlab pdfplumber` (already created; gitignored).
+- **Two interpreters** — matters per step:
+  - `PY=python3` — stdlib steps + API steps (needs `requests`, already on system).
+  - `PYV=.venv/bin/python` — needs python-docx / reportlab / pdfplumber.
+- **Shared clients** in `criteria-toolkit/scripts/` (`umls_client.py`,
+  `bioportal_client.py`, `expand_concepts.py`, `umls_synonyms.json`); skill scripts import them.
+- Set `SRC` = extracted policy `.txt`s, `PDFS` = source PDFs, `CODES` = canonical dx CSV,
+  `OUT` = `~/Documents/Claude/Projects/Criteria Updates/Imaging Vertical/<LCD> …/`.
 
 ## Interchange format — `criteria.json`
+```
+{ "policy": {lcd,title,payer,ncd_baseline,article, doc_criteria:[...]},
+  "groups": [{ "group_label", "codes": [{
+     code, description, modality, contrast,
+     "order_types": [{ order_type, context{stage,condition,product,category},
+                       logic_expression, criteria: [{n,title,type,definition,source,
+                       list_not_inlined?}] }] }]}]}
+```
+`type` enum: CLINICAL_INDICATION | PRIOR_WORKUP | PRIOR_IMAGING | METHODOLOGY |
+CONTRAST | THERAPY_LINKAGE | FREQUENCY | DOCUMENTATION | EXCLUSION | SPECIMEN.
 
-Every step reads/writes this shape (see `examples/L37373_70450.criteria.json`):
+---
 
-```json
-{
-  "policy": {"lcd","title","payer","ncd_baseline","article"},
-  "groups": [{
-    "group_label": "CT Scans — Group 1",
-    "codes": [{
-      "code","description","modality","contrast",
-      "order_types": [{                    // the qualification unit; a code may have several
-        "order_type": "Initial: Rheumatoid Arthritis",
-        "context": {"stage","condition","product","category"},
-        "logic_expression": "C1 AND (C2 OR C3) AND C4",   // AND/OR within THIS order type
-        "criteria": [{
-          "n": 1,
-          "title": "Headache / Dizziness Pathway",
-          "type": "CLINICAL_INDICATION",   // enum: CLINICAL_INDICATION | PRIOR_WORKUP |
-                                           // PRIOR_IMAGING | METHODOLOGY | CONTRAST |
-                                           // THERAPY_LINKAGE | FREQUENCY | DOCUMENTATION |
-                                           // EXCLUSION | SPECIMEN
-          "definition": "verbatim criterion text",
-          "source": "LCD L37373, CT sections D and E"
-        }]
-      }]
-      // a code with a flat top-level "criteria" list is treated as one order type
-    }]
-  }]
-}
+## Step 0 — `extract_policy_rules.py` · make the rule-list FIRST
+The completeness checklist: pulls every coverage rule from the policy text and tags
+each `relevance` = clinical | administrative | out_of_scope, `type`, and `has_or_group`.
+Nothing can be silently dropped once it's listed. **Run before authoring.**
+```
+$PY scripts/extract_policy_rules.py --policy $SRC/*.txt \
+    --out-json $OUT/<LCD>_rule_inventory.json --out-md $OUT/<LCD>_rule_inventory.md
+```
+Out: rule inventory. Review the `.md`; only `clinical` rules drive coverage.
+
+## Step 1 — criteria authoring (`criteria-writer` skill + the imaging prompt) → `criteria.json`
+Invoke the `criteria-writer` skill with the **imaging prompt** as the generation
+spec, the policy text, and the requested codes. **Feed the Step-0 inventory in and
+require every clinical INDICATION/EXCLUSION/LIMITATION rule to be covered.** Inline
+verbatim code lists; for a too-big set (e.g. 6,458 Group-1 codes) emit a call-out +
+`list_not_inlined {what,count,location}` — never genericize. Assemble into
+`criteria.json` (the interchange shape). Do NOT hand-write criteria.
+
+## Step 2 — `build_order_types.py` · model the qualification unit
+Wraps each code's criteria into `order_types`; if the policy forks a code (stage/
+diagnosis/product/category) author separate entries; else one default order type
+(AND of all criteria). Lints when one order type mixes lifecycle language (should split).
+```
+$PY scripts/build_order_types.py $OUT/<LCD>_criteria.json --out $OUT/<LCD>_criteria.json
+```
+In: Step-1 criteria. Out: criteria with `order_types`.
+
+## Step 3 — `resolve_ambiguous_terms.py` · pin operational definitions
+`detect` finds decisive-but-undefined terms per criterion (flags policy-defined
+ones like "unusual duration = >2 weeks"). You author an operational definition (rule
++ positives/negatives + time_window + treatment + missing_data) per undefined term
+in `resolutions.json`; `apply` embeds it inline; unresolved terms escalate.
+```
+$PY scripts/resolve_ambiguous_terms.py detect $OUT/<LCD>_criteria.json --out $OUT/<LCD>_terms.json
+# author $OUT/<LCD>_resolutions.json for the NEEDS_OPERATIONAL_DEFINITION terms, then:
+$PY scripts/resolve_ambiguous_terms.py apply $OUT/<LCD>_criteria.json \
+   --resolutions $OUT/<LCD>_resolutions.json --out $OUT/<LCD>_criteria.resolved.json \
+   --report $OUT/<LCD>_resolver_report.md
+```
+Runs AFTER Step 2. `criteria.resolved.json` becomes the criteria fed downstream.
+(Step 10 applies resolutions for you; you still author `resolutions.json`.)
+
+## Step 4 — render the criteria doc — `render_criteria_doc.py` / `render_criteria_docx.py` / `render_criteria_pdf.py`
+The human criteria document in three formats; `.pdf` is the artifact to hand Tennr.
+```
+$PY  scripts/render_criteria_doc.py  $OUT/<LCD>_criteria.resolved.json > $OUT/<LCD>_criteria_by_code.md
+$PYV scripts/render_criteria_docx.py $OUT/<LCD>_criteria.resolved.json --out $OUT/<LCD>_criteria_by_code.docx
+$PYV scripts/render_criteria_pdf.py  $OUT/<LCD>_criteria.resolved.json --out $OUT/<LCD>_criteria_by_code.pdf
+```
+docx/pdf need `$PYV`. Tennr house format: banners, □ checklist, policy-quote callouts, appendix.
+
+## Step 5 — `build_extraction_fields.py` · extraction fields (UMLS atoms)
+Per criterion: detects clinical concepts (BioPortal annotator), builds each field's
+recall set from **UMLS atoms** (+ ICD from atoms), writes a "represented in a
+variety of ways: …" directive. Needs `requests` → `$PY`.
+```
+$PY scripts/build_extraction_fields.py $OUT/<LCD>_criteria.resolved.json --out $OUT/<LCD>_extraction_fields.csv
+```
+Helper — `expand_concepts.py` (shared): `validate` grounds model-proposed related
+concepts; `atoms` builds a synonym set; `test` gates recall/precision on labeled charts.
+
+## Step 6 — `render_extractions_doc.py` · companion doc
+Mirrors the criteria doc on the extraction side (code→order type→criterion→fields).
+```
+$PYV scripts/render_extractions_doc.py $OUT/<LCD>_extraction_fields.csv \
+    --out-md $OUT/<LCD>_extraction_fields_by_code.md --out-docx $OUT/<LCD>_extraction_fields_by_code.docx
 ```
 
-## The flow
-
-This is a **loop, not a single pass** — the fix for criteria generation flattening
-pathways and dropping safety rules. List every rule first (Step 0), generate
-covering that list, then check back against it (Step 6) and regenerate what's
-missing.
-
-### Step 0 — Make the rule list first (completeness fix)
-
-```bash
-python3 scripts/extract_policy_rules.py --policy lcd.txt ncd.txt article.txt \
-    --out-json rule_inventory.json --out-md rule_inventory.md
+## Step 7 — `coverage_check.py` · close the completeness check
+Diffs criteria against the Step-0 inventory; ranks least-covered rules by type.
+```
+$PY scripts/coverage_check.py $OUT/<LCD>_criteria.resolved.json --inventory $OUT/<LCD>_rule_inventory.json \
+    --out $OUT/<LCD>_coverage_gaps.md --threshold 0.4
 ```
 
-Before any criteria are written, enumerate every rule the policy states —
-classified INDICATION / EXCLUSION / LIMITATION / ADMINISTRATIVE, with `has_or_group`
-flagging alternative routes (pathways). This is the checklist nothing can be
-silently dropped from. Review/curate the `.md`; the agent may add rules the
-deterministic pass missed.
+## Step 8 — traceability — `build_traceability.py` → `locate_rules_in_pdf.py` → `render_traceability_html.py`
+Interactive explorer: click a rule → jump/highlight in the PDF; overlay all rules by
+type; chips count clinical coverage only (admin/out-of-scope behind a toggle).
+```
+$PY  scripts/build_traceability.py $OUT/<LCD>_rule_inventory.json $OUT/<LCD>_criteria.resolved.json --out $OUT/<LCD>_traceability.json
+$PYV scripts/locate_rules_in_pdf.py $OUT/<LCD>_rule_inventory.json --pdf $PDFS --out $OUT/<LCD>_rule_locations.json
+$PY  scripts/render_traceability_html.py $OUT/<LCD>_traceability.json --locations $OUT/<LCD>_rule_locations.json \
+     --pdf $PDFS --title "<LCD>" --out $OUT/<LCD>_traceability.html
+```
+`locate` needs pdfplumber (`$PYV`). PDFs are base64-embedded → HTML is self-contained
+(needs internet once for PDF.js CDN). Order: build → locate → render.
 
-### Step 1 — Write the criteria (cover every rule)
-
-Invoke the `criteria-writer` skill with the imaging prompt, the policy text, and
-the requested codes. **Feed the rule inventory in and require every INDICATION,
-EXCLUSION and LIMITATION rule to be covered.** Decide order-type structure here:
-if the policy forks a code's criteria by lifecycle stage / diagnosis / product /
-category, author each as a separate `order_type` (Step 2); if routes only differ in
-how one requirement is met, keep them as an OR inside one order type. Never flatten
-a genuine split into a single AND-list. Do NOT hand-write criteria — always go
-through `criteria-writer`.
-
-### Step 2 — Model order types (the qualification unit)
-
-```bash
-python3 scripts/build_order_types.py criteria.json --out criteria.with_order_types.json
+## Step 9 — `build_machine_copy.py` · platform JSON + code files
+Emits the evaluator copy: the full literal code set inlined in EVERY covered-dx
+criterion (count-checksummed, aborts on mismatch); human `criteria.json` keeps the
+call-out. Also a readable machine `.md` + paste-ready codes `.txt`.
+```
+$PY scripts/build_machine_copy.py $OUT/<LCD>_criteria.resolved.json --codes $CODES --out-dir $OUT
 ```
 
-The unit is the **order type**: one code + payer/context with its OWN criteria set.
-A code can have several. Two levels:
-- **Split into separate order types** when the criteria SET differs — by lifecycle
-  stage (Initial/Continuation/Renewal/Recert/Replacement), diagnosis, product, or
-  clinical category (e.g. J1745: Initial-RA vs Continuation-RA). Author these as
-  separate entries in `order_types`. See `examples/J1745_infliximab_multi_order_type.*`.
-- **Keep in ONE order type (OR inside its `logic_expression`)** when the alternative
-  routes share the same documentation + medical-necessity rules (e.g. lumbar MRI:
-  red-flag route OR failed-conservative route → `C1 AND (C2 OR (C3 AND C4)) AND C5`).
-  See `examples/lumbar_MRI_one_order_type.*`.
-
-If a code only has a flat `criteria` list, it's wrapped into one default order type
-(AND of all criteria) — correct for diagnostic imaging, where a CPT code is usually
-one order type. The script also **lints**: it flags an order type whose criteria mix
-lifecycle language (both "initial" and "continuation") — a sign it should be split.
-
-### Step 2.5 — Resolve ambiguous terms (pin operational definitions)
-
-```bash
-python3 scripts/resolve_ambiguous_terms.py detect criteria.with_order_types.json --out terms.json
-# model authors operational definitions for the NEEDS_OPERATIONAL_DEFINITION terms -> resolutions.json
-python3 scripts/resolve_ambiguous_terms.py apply criteria.with_order_types.json \
-    --resolutions resolutions.json --out criteria.resolved.json --report resolver_report.md
+## Step 10 — `close_loop.py` · find → fix → re-check (the orchestrator)
+Applies resolutions, checks undefined terms + uncovered **clinical** rules, and
+**converges** (or emits a worklist of what still needs authoring). With `--render`
+it re-runs Steps 4–9 so nothing drifts. Reviewed residuals (out-of-scope/matcher-miss)
+go in `accepted_gaps.json` with a reason so heuristic noise can't block convergence.
+Authoring stays model/human-in-the-loop by design.
 ```
-
-The upstream fix for undefined decisive terms (the "active SPMS" problem). `detect`
-finds decisive lexicon terms per criterion and flags which the policy already
-defines (e.g. "unusual duration = >2 weeks" → left alone). For the undefined ones,
-the model authors an **operational definition** (rule + positives/negatives + time
-window + treatment + missing-data handling) and `apply` embeds it inline in the
-criterion; genuinely undecidable terms are **escalated** (excluded from scoring, not
-improvised). This is the "explanation that belongs in the criterion" — a *decision*,
-not a dictionary gloss. Feed `criteria.resolved.json` to Steps 3–4.
-
-### Step 3 — Render the criteria doc
-
-```bash
-python3 scripts/render_criteria_doc.py criteria.with_order_types.json > <LCD>_criteria_by_code.md
+$PY scripts/close_loop.py $OUT/<LCD>_criteria.json --inventory $OUT/<LCD>_rule_inventory.json \
+    --resolutions $OUT/<LCD>_resolutions.json --codes $CODES --accepted-gaps $OUT/<LCD>_accepted_gaps.json \
+    --out-dir $OUT --pyv $PYV --pdfs $PDFS --render
 ```
+**The loop:** run → read the worklist → author new operational definitions / re-author
+gap criteria / accept a reviewed residual → re-run → repeat until "Converged: YES".
 
-Renders each code's order types as separate qualification units, each with its own
-criteria and `logic_expression`. For a .docx hand-off, run through the `docx` skill.
+## Dependency order (what must precede what)
+Step 0 → 1 → 2 → 3 → (4,5,6,7,8,9 in any order) → 10 wraps them. Step 8 render needs
+`locate` first. Step 9 & the PLATFORM copy need `$CODES`. Steps 5/8-locate hit the
+APIs/PDFs; the rest are offline.
 
-### Step 4 — Build the extraction fields (UMLS atoms)
-
-```bash
-python3 scripts/build_extraction_fields.py criteria.with_order_types.json --out extraction_fields.csv
-```
-
-Per criterion: detects clinical concepts (BioPortal Annotator, clinical semantic
-types), then builds each field's recall set from **UMLS atoms** — the authoritative
-synonym strings for that concept's CUI — and pulls ICD-10 codes straight from the
-concept's ICD atoms (falling back to a guarded BioPortal search when the CUI has
-no ICD atom). The directive names every representation, e.g. *"Find documentation
-of Dizziness… represented in a variety of ways: dizziness, vertigo, …, etc."*
-Each concept also gets a **UMLS definition** (from its CUI — NCI/MeSH/MedlinePlus)
-to enrich the field for reviewers and the evaluator; use `--plain` upstream for
-patient-friendly text. (UMLS is the right source for definitions — the NCBI
-E-utilities/MedGen APIs are for literature/genetics, narrower and redundant here.)
-Columns: `code, modality, order_type, criterion_n, criterion_type, criterion_title,
-extraction_field, directive, seed_term, ontology, grounded_label, class_id, cui,
-concept_set, definition, definition_source, icd10_candidates, icd_source,
-needs_review, source_criterion`.
-
-### Step 5 (optional) — Add related concepts / gate on charts (Way 1)
-
-Atoms give exact synonyms of a concept, not *related* concepts. When a policy's
-illustrative list needs broader recall (e.g. "intracranial bleeding" → subdural,
-subarachnoid, epidural hematoma — distinct CUIs), the model proposes them and
-`expand_concepts.py validate` grounds them. Seed atoms on the **context-qualified**
-term ("intracranial hemorrhage"), not the bare surface ("bleeding"), or the atoms
-resolve to the generic concept and lose context. Gate on real charts with
-`expand_concepts.py test` when SimonMed-style labeled charts are available.
-
-### Step 6 — Coverage completeness check (close the loop)
-
-```bash
-python3 scripts/coverage_check.py criteria.json --inventory rule_inventory.json --out coverage_gaps.md
-```
-
-Diffs the criteria against the Step-0 rule inventory and ranks the least-covered
-rules, grouped by type, with the missing terms — catches dropped branches (this is
-how the L37373 pacemaker / "not a suitable MRI candidate" indication surfaces at
-25%). **Any clinical rule below threshold feeds back to Step 1 for a targeted
-second pass.** Loop until no clinical rule is uncovered. (Can also diff against raw
-policy text with `--policy` instead of `--inventory`.) A low score can be a real
-gap or an intentionally-omitted administrative requirement — the type tag helps
-you tell fast.
-
-### Step 7 — Close the loop (one command)
-
-```bash
-python3 scripts/close_loop.py criteria.json --inventory rule_inventory.json \
-    --resolutions resolutions.json --codes codes.csv \
-    --accepted-gaps accepted_gaps.json --out-dir DIR --pyv .venv/bin/python \
-    --pdfs a.pdf b.pdf --render
-```
-
-The find → fix → re-check controller. It applies the operational definitions, then
-checks for (a) undefined decisive terms with no resolution and (b) uncovered
-**clinical** rules (admin/out-of-scope excluded). Converged = both clean. If not, it
-emits a worklist of exactly what still needs authoring; the model/config-owner tops
-up `resolutions.json` (new operational definitions), re-authors the gap criteria, or
-accepts a residual in `accepted_gaps.json` (out-of-scope / matcher-miss, with a
-reason) — then re-runs. On convergence (or `--render`) it regenerates the whole
-downstream so nothing drifts. Authoring stays human/model-in-the-loop by design;
-everything else (apply, check, converge-decision, worklist, regenerate) is automated.
-
-## Outputs
-
-- `rule_inventory.md` / `.json` — the policy's full rule list (Step 0 checklist).
-- `<LCD>_criteria_by_code.md` — criteria doc, order types per code with logic.
-- `extraction_fields.csv` — per-criterion extraction fields, atom-based recall sets + ICD.
-- `coverage_gaps.md` — completeness gap report (criteria vs the rule inventory).
-- `<LCD>_criteria.PLATFORM.json` — the evaluator copy: big code sets inlined in FULL
-  in every covered-diagnosis criterion (the evaluator has no lookup, so each order
-  type must be self-contained). Human `criteria.json` keeps the short call-out.
-  Built by `build_machine_copy.py --codes <canonical.csv>` (checksums the count vs
-  the criterion's `list_not_inlined.count`; aborts on mismatch). Also emits a
-  readable `_MACHINE_full_codes.md` (list once + referenced) and a paste-ready
-  `_dx_codes.txt`.
-
-Save deliverables under `Documents/Claude/Projects/Criteria Updates/Imaging Vertical/`.
+## Interpreter cheatsheet
+`$PYV` (venv): render_criteria_docx, render_criteria_pdf, render_extractions_doc,
+locate_rules_in_pdf. `$PY` (system, has requests): everything else, incl.
+build_extraction_fields (BioPortal/UMLS) and close_loop (which shells `$PYV` for the
+lib steps via `--pyv`).
 
 ## Constraints & honest limits
+- Criteria text + operational definitions are model-authored — every one flags
+  "reviewer: PENDING"; a clinician signs off before go-live.
+- Coverage/relevance/locate are heuristics (token overlap, lexicon, term-match) —
+  they flag candidates; accept reviewed residuals rather than chase 100%.
+- UMLS atoms are exact synonyms of the bare term's CUI — seed on the context-qualified
+  term for scoped concepts. ICD `bioportal_fuzzy_review` rows are review-tier.
+- Real accuracy needs real charts with outcomes (SimonMed) — not built.
 
-- `concept_set` is a flat recall list — no reasoning — so it fits the current
-  extraction-field model without a schema change. It is a **distinct output
-  surface** from the criteria prompt.
-- **Atoms lose context**: a bare surface ("bleeding") resolves to the generic CUI
-  (Hemorrhage → R58), not the intracranial concept. Seed atoms on the
-  context-qualified term (step 5) for those.
-- The detector over-generalizes some terms ("focal problem" → "Problem") and
-  over-detects (verbs, anatomy); those rows are for review.
-- ICD-10 candidates are review-tier. `icd_source=umls_atoms` is authoritative for
-  the concept; `bioportal_fuzzy_review` still lets off-target codes through.
-- Coverage check is a heuristic (token overlap); it flags candidates, doesn't
-  decide correctness. Real recall needs real charts with outcomes.
-
-See [[imaging-ontology-expansion]] for the design rationale and recall evidence.
+See also: [[imaging-ontology-expansion]], [[order-types-model]],
+[[ambiguous-term-resolver]], [[criteria-evaluator]], [[umls-term-glossing]].

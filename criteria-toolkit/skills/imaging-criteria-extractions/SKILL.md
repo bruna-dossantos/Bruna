@@ -30,6 +30,23 @@ downstream steps and drives find → fix → re-check to convergence.
 - `<LCD>_criteria.PLATFORM.json` + `<LCD>_group1_dx_codes.csv/.json/.txt` — evaluator copy w/ codes inlined
 - `<LCD>_close_loop_report.md` — convergence report / worklist
 
+## Run folder layout (how a finished run is organized — Step 11)
+Generate flat into `OUT/`, then package with `organize_run.py` into ONE folder per
+policy, named `<Theme> - <Payor> (<ID>)` — include the policy ID when there is one;
+if not, use a more specific payor (plan / line of business) so runs can't collide:
+```
+MRI Head & Neck - Medicare (L37373)/
+  README.md            ← START HERE: status + what a reviewer must confirm + file index
+  1 - Policy Source/   ← source LCD / NCD / article PDFs
+  2 - Working Files/   ← <LCD>_criteria.json, rule_inventory, rule_locations, traceability.json
+  3 - Checks/          ← close_loop_report, resolutions, accepted_gaps, criteria.resolved, coverage, ambiguous_terms
+  4 - Human Outputs/   ← criteria_by_code .docx/.pdf/.md, extraction_fields_by_code docs, traceability.html
+  5 - Machine Outputs/ ← criteria.PLATFORM.json, MACHINE_full_codes.md, extraction_fields.csv, group1_dx_codes .csv/.json/.txt
+```
+`run_layout.py` is the single source of truth for the bucket a file lands in — keep
+it in sync if you add an output. The cross-run **Summary & Decisions** doc stays one
+level up (it spans all policies), not inside a run folder.
+
 ## Core principles (the decisions this encodes)
 - **Order type = the qualification unit.** A code may have several; split when the
   criteria SET differs (stage/diagnosis/product/category), else keep as an OR inside
@@ -203,10 +220,25 @@ $PY scripts/close_loop.py $OUT/<LCD>_criteria.json --inventory $OUT/<LCD>_rule_i
 never invent clinical meaning — they mark the term as unmet + PENDING so it can't
 silently pass; the agent's job across re-runs is to replace them with real definitions.
 
+## Step 11 — `organize_run.py` · package the run into one named folder
+Last step. Sorts the flat `OUT/` into the run-folder layout above and writes the
+`README.md` (START HERE) from the close-loop status. Non-destructive; idempotent;
+leaves unrecognized / superseded files (`older - …`, `~$…`) at the root and lists
+them under "Unsorted".
+```
+$PY scripts/organize_run.py $OUT --theme "MRI Head & Neck" --payor "Medicare" --policy-id L37373
+# or sort inside an existing run folder:  … $RUNDIR --theme … --payor … --in-place
+# to reverse before re-generating:        $PY scripts/organize_run.py $RUNDIR --flatten
+```
+Or fold it into the loop's final pass: add `--organize --theme "…" --payor "…"
+[--policy-id …]` to the `close_loop.py … --best-effort` call and it packages after
+rendering. **Re-generating an organized run:** `--flatten` first, re-run, re-organize.
+
 ## Dependency order (what must precede what)
-Step 0 → 1 → 2 → 3 → (4,5,6,7,8,9 in any order) → 10 wraps them. Step 8 render needs
-`locate` first. Step 9 & the PLATFORM copy need `$CODES`. Steps 5/8-locate hit the
-APIs/PDFs; the rest are offline.
+Step 0 → 1 → 2 → 3 → (4,5,6,7,8,9 in any order) → 10 wraps them → 11 packages. Step 8
+render needs `locate` first. Step 9 & the PLATFORM copy need `$CODES`. Steps 5/8-locate
+hit the APIs/PDFs; the rest are offline. Run Step 11 (or `--organize`) only at the very
+end — once organized, `--flatten` before any re-generation.
 
 ## Interpreter cheatsheet
 `$PYV` (venv): render_criteria_docx, render_criteria_pdf, render_extractions_doc,

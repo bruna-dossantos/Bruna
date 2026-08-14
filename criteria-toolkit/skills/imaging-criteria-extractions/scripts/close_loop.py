@@ -92,7 +92,15 @@ def main(argv=None):
                          "+ a NEEDS-REVIEW list. The agent authors real fixes across re-runs to "
                          "shrink that list; this guarantees a finished package every time.")
     ap.add_argument("--max-passes", type=int, default=3)
+    ap.add_argument("--organize", action="store_true",
+                    help="after rendering, package the out-dir into a named run folder "
+                         "(needs --theme and --payor)")
+    ap.add_argument("--theme", help='product/service theme for the run folder, e.g. "MRI Head & Neck"')
+    ap.add_argument("--payor", help='payor for the run folder, e.g. "Medicare"')
+    ap.add_argument("--policy-id", help="policy id for the run folder (default: the LCD from the criteria)")
     args = ap.parse_args(argv)
+    if args.organize and (not args.theme or not args.payor):
+        ap.error("--organize needs --theme and --payor")
 
     base = json.loads(Path(args.criteria_json).read_text())
     inv = json.loads(Path(args.inventory).read_text())
@@ -214,6 +222,12 @@ def main(argv=None):
                 + ["--title", lcd, "--out", str(out / f"{lcd}_traceability.html")], sys.executable)
         run([str(HERE / "build_machine_copy.py"), cj, "--codes", args.codes, "--out-dir", str(out)], sys.executable)
         print("downstream regenerated.", file=sys.stderr)
+
+    if args.organize:
+        import organize_run as ORG
+        run_dir = ORG.organize(str(out), args.theme, args.payor,
+                               args.policy_id or lcd, in_place=False)
+        print(f"packaged run into {run_dir}", file=sys.stderr)
 
 
 if __name__ == "__main__":

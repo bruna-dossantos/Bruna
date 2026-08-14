@@ -33,7 +33,7 @@ New additive: `context/` (6), `agents/` (6), `automation/manifests/` (13), `skil
 - **3 Project splits** ✅ PROJECT.md added; denial method → skill (non-destructive)
 - **5 Automation manifests** ✅ 13 manifests + INDEX with consolidation map
 - **4/6 Verify routing & discovery** ✅ symlinks resolve (see verification below)
-- **7 Archive** ⏳ **PROPOSAL ONLY — awaiting Bruna's approval** (below)
+- **7 Archive** ✅ **EXECUTED 2026-08-14** — 25 items moved to `~/Documents/Claude/Archives/architecture-migration-2026-08-14/` (read-only, with MANIFEST + MOVE-LOG + checksums). Discovery symlinks re-verified. Reversible.
 
 ## Phase 7 — archive proposal (NOT executed)
 > **Reference audit passed** (2026-08-14, `PATH-REFERENCE-AUDIT.md`): no code, config, symlink, or live scheduler depends on any candidate path. Safe to archive on go-ahead.

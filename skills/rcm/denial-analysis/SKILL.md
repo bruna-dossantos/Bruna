@@ -40,4 +40,4 @@ Report **counts AND financial impact**: total denied claims, denied allowed/bill
 Use direct language ("This suggests…", "The highest-risk area appears to be…", "Recommended next step…"). Avoid "there may be some issues" / "this is interesting" / "more research needed" without saying exactly what to review and why. Keep it executive-friendly and plain-English.
 
 ## Source
-Method extracted 2026-08-14 from `~/Documents/Claude/Projects/Denial Analyzer/AGENTS.md` (project brief). Project-specific data (CARC/RARC lists, write-off files) stays in that project — see its `PROJECT.md`.
+Method extracted 2026-08-14 from `~/Claude/Projects/Denial Analyzer/AGENTS.md` (project brief). Project-specific data (CARC/RARC lists, write-off files) stays in that project — see its `PROJECT.md`.

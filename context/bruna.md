@@ -12,7 +12,7 @@
 - Prefer a short concrete example over an abstract description.
 - **Concise and action-oriented** — plain does not mean long-winded.
 - If Bruna asks for the technical/code-level detail, go deep; otherwise stay plain.
-- She likes work organized into plugins/skills where possible, and a clean desktop — work files live under `~/Documents/Claude/Projects/`.
+- She likes work organized into plugins/skills where possible, and a clean desktop — work files live under `~/Claude/Projects/`.
 
 ## Related
 See [[people]] for tone-by-relationship, [[terminology]] for shorthand, [[systems]] for tools, [[sources-of-truth]] for authoritative data rules.

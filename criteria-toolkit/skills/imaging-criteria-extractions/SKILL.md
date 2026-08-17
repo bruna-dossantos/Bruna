@@ -61,7 +61,7 @@ level up (it spans all policies), not inside a run folder.
   must be self-contained with explicit pass-throughs. ([[criteria-evaluator]])
 
 ## Setup (once)
-- **API keys** present: `~/Documents/Claude/Projects/Credentials/umls_api_key.txt`
+- **API keys** present: `~/Claude/Projects/Credentials/umls_api_key.txt`
   and `BioPortal_API.txt`. ([[umls-term-glossing]])
 - **venv** (for docx/pdf/pdfplumber steps): `python3 -m venv .venv && .venv/bin/pip
   install -r requirements.txt` (already created; gitignored).
@@ -71,7 +71,7 @@ level up (it spans all policies), not inside a run folder.
 - **Shared clients** in `criteria-toolkit/scripts/` (`umls_client.py`,
   `bioportal_client.py`, `expand_concepts.py`, `umls_synonyms.json`); skill scripts import them.
 - Set `SRC` = extracted policy `.txt`s, `PDFS` = source PDFs, `CODES` = canonical dx CSV,
-  `OUT` = `~/Documents/Claude/Projects/Criteria Updates/Imaging Vertical/<LCD> …/`.
+  `OUT` = `~/Claude/Projects/Criteria Updates/Imaging Vertical/<LCD> …/`.
 
 ## Interchange format — `criteria.json`
 ```

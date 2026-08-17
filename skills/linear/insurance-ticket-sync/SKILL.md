@@ -21,7 +21,7 @@ Produces two lists from a completed-codes CSV and the Linear master data, then e
 
 | | |
 |---|---|
-| Master data dir | `~/Documents/Claude/Projects/Linear Master Data/` |
+| Master data dir | `~/Claude/Projects/Linear Master Data/` |
 | Issues export meta | `insurance_initiative_export_metadata.json` |
 | Issues CSV | `insurance_initiative_issues_latest.csv` |
 | Analysis script | `criteria-toolkit/scripts/analyze_insurance_tickets.py` |
@@ -34,7 +34,7 @@ Produces two lists from a completed-codes CSV and the Linear master data, then e
 
 ## Step 1 — Check master data freshness
 
-Read `~/Documents/Claude/Projects/Linear Master Data/insurance_initiative_export_metadata.json`.
+Read `~/Claude/Projects/Linear Master Data/insurance_initiative_export_metadata.json`.
 
 Show the user:
 > Master data last exported: **{last_export}** ({N} issues)

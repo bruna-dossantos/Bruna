@@ -19,7 +19,7 @@ version: 1.0.0
 Compares built order rules (a "Service Line Order Type Codes" export) against Linear criteria
 tickets and produces an actionable diff. **Read-only** — it never changes Linear.
 
-## Inputs (durable, in `~/Documents/Claude/Projects/`)
+## Inputs (durable, in `~/Claude/Projects/`)
 - **Order-type export** (the input) — provided by Bruna, usually in `~/Downloads/`.
 - **`Linear Master Data/payer_project_crosswalk.csv`** — Bruna's hand-validated payer→project
   mappings. **Source of truth; applied first.** Key: `(payer_family, insurance_payer, plan_category)`.
@@ -41,7 +41,7 @@ Check the age of `insurance_initiative_issues_latest.csv`.
 python3 scripts/reconcile.py --prep "<path to the order type export>.csv"
 ```
 Writes `dme_payers_source.csv` + `inf_payers_source.csv` (distinct payers × volume) to
-`~/Documents/Claude/Projects/Criteria Updates/.recon_work/` and prints the exact mapper commands.
+`~/Claude/Projects/Criteria Updates/.recon_work/` and prints the exact mapper commands.
 
 ### Step 3 — Run the payer-linear-mapper skill
 Invoke **`payer-linear-mapper`** on each source list, writing its output back to `.recon_work/`:
@@ -63,7 +63,7 @@ Resolution order per row: **crosswalk override → family+category(+state) → o
 an MA/Medicaid row into a commercial project. Anything unresolved is collected for review, never guessed.
 
 ### Step 5 — Deliver
-Outputs land in `~/Documents/Claude/Projects/Criteria Updates/`, date-stamped:
+Outputs land in `~/Claude/Projects/Criteria Updates/`, date-stamped:
 - `Order_Rule_Linear_Reconciliation_<date>.xlsx` — Summary + tabs: **FLIP → mark Done**,
   **NEW-TIX → create**, **CONFLICT → review**, **UNIT-GAP**, **DONE (in sync)**, and
   **Needs Review (order names)** (unresolved rows with order type name + ID for Bruna to map).

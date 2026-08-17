@@ -32,7 +32,7 @@ stale, then run this skill to get fresh tickets.
 | | |
 |---|---|
 | Script | `criteria-toolkit/scripts/refresh_insurance_issues.py` |
-| Output dir | `~/Documents/Claude/Projects/Linear Master Data/` |
+| Output dir | `~/Claude/Projects/Linear Master Data/` |
 | Issues CSV | `insurance_initiative_issues_latest.csv` |
 | Export metadata | `insurance_initiative_export_metadata.json` |
 | Stale threshold | 7 days |
@@ -42,7 +42,7 @@ stale, then run this skill to get fresh tickets.
 
 ## Step 1 — Check current staleness
 
-Read `~/Documents/Claude/Projects/Linear Master Data/insurance_initiative_export_metadata.json`.
+Read `~/Claude/Projects/Linear Master Data/insurance_initiative_export_metadata.json`.
 
 Show:
 > Issues export last refreshed: **{last_export}** ({n_issues} issues)
@@ -80,7 +80,7 @@ After the script completes, show:
 
 ## Notes
 
-- The script authenticates using `~/Documents/Claude/Projects/Credentials/linear_tokens.json`
+- The script authenticates using `~/Claude/Projects/Credentials/linear_tokens.json`
 - Both the timestamped file and `latest.csv` are written — the timestamped one serves as a
   historical record; `analyze_insurance_tickets.py` always reads `latest.csv`
 - The Insurance initiative ID is hardcoded in the script (`3f3a1212-8cb2-4afe-bcd5-4c8b8f0104de`)

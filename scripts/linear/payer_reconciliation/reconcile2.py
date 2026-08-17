@@ -3,7 +3,7 @@
 import csv, re, json
 from collections import Counter, defaultdict
 
-MD="/Users/brunadossantos/Documents/Claude/Projects/Linear Master Data"
+MD="/Users/brunadossantos/Claude/Projects/Linear Master Data"
 LIN=f"{MD}/insurance_initiative_issues_latest.csv"
 WORK="/private/tmp/claude-501/-Users-brunadossantos-Projects-Bruna--claude-worktrees-inspiring-cannon-a54635/b4e7b3c8-2754-46fa-a3ad-6e0e1f6f10f1/scratchpad/recon"
 

@@ -246,7 +246,7 @@ class ConceptExpander:
 
 def _umls_key_present():
     return bool(os.environ.get("UMLS_API_KEY")) or \
-        (Path.home() / "Documents/Claude/Projects/Credentials/umls_api_key.txt").exists()
+        (Path.home() / "Claude/Projects/Credentials/umls_api_key.txt").exists()
 
 
 # ---- recall/precision harness (Way 1 step 3) --------------------------------

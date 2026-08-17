@@ -15,7 +15,7 @@ Auth (any of these; no ticket flow):
   Key is read from, in order:
     1. --api-key
     2. env var BIOPORTAL_API_KEY
-    3. ~/Documents/Claude/Projects/Credentials/BioPortal_API.txt
+    3. ~/Claude/Projects/Credentials/BioPortal_API.txt
 
 Commands:
   python3 bioportal_client.py recommend policy.md     # which ontologies fit the text
@@ -34,7 +34,7 @@ from pathlib import Path
 import requests
 
 BASE = "https://data.bioontology.org"
-KEY_FILE = Path.home() / "Documents/Claude/Projects/Credentials/BioPortal_API.txt"
+KEY_FILE = Path.home() / "Claude/Projects/Credentials/BioPortal_API.txt"
 
 # Ontologies for definition text, best-first. NCIT carries clean plain-language
 # definitions; SNOMEDCT/MSH are strong for detection but sparse on definition text.

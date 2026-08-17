@@ -4,7 +4,7 @@ import csv, re
 from collections import Counter, defaultdict
 
 DL="/Users/brunadossantos/Downloads/Service Line Order Type Codes Jul 15 2026.csv"
-PROJ="/Users/brunadossantos/Documents/Claude/Projects/Linear Master Data/insurance_projects.csv"
+PROJ="/Users/brunadossantos/Claude/Projects/Linear Master Data/insurance_projects.csv"
 projset={r['Name'] for r in csv.DictReader(open(PROJ))}
 
 STATES=['alabama','alaska','arizona','arkansas','california','colorado','connecticut','delaware',

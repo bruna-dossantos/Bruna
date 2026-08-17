@@ -23,8 +23,8 @@ Usage:
 import csv, os, sys, re, shutil, datetime, argparse
 
 HOME=os.path.expanduser("~")
-MASTER=f"{HOME}/Documents/Claude/Projects/Linear Master Data"
-OUT=f"{HOME}/Documents/Claude/Projects/Criteria Updates"
+MASTER=f"{HOME}/Claude/Projects/Linear Master Data"
+OUT=f"{HOME}/Claude/Projects/Criteria Updates"
 CROSSWALK=f"{MASTER}/payer_project_crosswalk.csv"
 PROJECTS=f"{MASTER}/insurance_projects.csv"
 XCOLS=["payer_family","insurance_payer","plan_category","linear_project","project_uuid","source","effective"]

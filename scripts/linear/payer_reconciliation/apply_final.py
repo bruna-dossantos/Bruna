@@ -8,7 +8,7 @@ import family_lib as F
 
 DL="/Users/brunadossantos/Downloads/Service Line Order Type Codes Jul 15 2026.csv"
 WORK="/private/tmp/claude-501/-Users-brunadossantos-Projects-Bruna--claude-worktrees-inspiring-cannon-a54635/b4e7b3c8-2754-46fa-a3ad-6e0e1f6f10f1/scratchpad/recon"
-XL="/Users/brunadossantos/Documents/Claude/Projects/Criteria Updates/Full_Insurance_Mapping_Jul16.xlsx"
+XL="/Users/brunadossantos/Claude/Projects/Criteria Updates/Full_Insurance_Mapping_Jul16.xlsx"
 
 # ---- live projects (superset) ----
 projects={r['Name']:r['UUID'] for r in csv.DictReader(open(f"{WORK}/projects_live.csv"))}

@@ -3,7 +3,7 @@
 refresh_insurance_issues.py
 
 Exports all issues from the Insurance initiative in Linear to:
-  ~/Documents/Claude/Projects/Linear Master Data/
+  ~/Claude/Projects/Linear Master Data/
     insurance_initiative_issues_<timestamp>.csv   ← timestamped snapshot
     insurance_initiative_issues_latest.csv         ← always the freshest
 
@@ -13,14 +13,14 @@ Usage:
   python3 refresh_insurance_issues.py
 
 Auth:
-  Reads token from ~/Documents/Claude/Projects/Credentials/linear_tokens.json
+  Reads token from ~/Claude/Projects/Credentials/linear_tokens.json
 """
 
 import requests, json, csv, datetime, time
 from pathlib import Path
 
-TOKEN_FILE  = Path.home() / "Documents/Claude/Projects/Credentials/linear_tokens.json"
-OUT_DIR     = Path.home() / "Documents/Claude/Projects/Linear Master Data"
+TOKEN_FILE  = Path.home() / "Claude/Projects/Credentials/linear_tokens.json"
+OUT_DIR     = Path.home() / "Claude/Projects/Linear Master Data"
 API         = "https://api.linear.app/graphql"
 INITIATIVE_ID = "3f3a1212-8cb2-4afe-bcd5-4c8b8f0104de"
 

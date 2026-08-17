@@ -1,6 +1,6 @@
 # Bruna's Claude Operating System — Orchestrator
 
-This repo is Bruna's Claude operating system: durable context, reusable agents, canonical skills, references, and shared scripts. The working data/output library lives separately at `~/Documents/Claude/Projects/`.
+This repo is Bruna's Claude operating system: durable context, reusable agents, canonical skills, references, and shared scripts. The working data/output library lives separately at `~/Claude/Projects/`.
 
 Operating rule: **Context says what is true. Agents decide and reason. Skills define how work is performed. Projects contain the work itself.**
 

@@ -37,5 +37,5 @@ Seven things are customer-specific. Everything else in the pipeline is generic:
 ## If this becomes a skill
 
 Per the skill-authoring convention these files would move to
-`~/Documents/Claude/skills/<skill-name>/`, one folder per skill. They are here for now
+`~/Claude/skills/<skill-name>/`, one folder per skill. They are here for now
 because the method is still being proven against a second customer.

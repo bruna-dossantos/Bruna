@@ -2,7 +2,7 @@
 
 Generated from Bruna's scheduled-task wrapper skills. Each wrapper is a thin schedule
 pointing at a real (canonical) skill. Sources were read-only; nothing under
-`~/Documents/Claude/Scheduled/` or `~/.claude/scheduled-tasks/` was modified.
+`~/Claude/Scheduled/` or `~/.claude/scheduled-tasks/` was modified.
 
 | wrapper | schedule | canonical skill | notes |
 |---------|----------|-----------------|-------|
@@ -42,8 +42,8 @@ parameter rather than being recreated as separate schedulers.
   → One skill, runs 2x/week (Sun + Wed).
 
 - **one-on-one-prep (1:1 prep)** ← LIKELY collapses 3 wrappers into a single 1:1-prep automation:
-  - `~/Documents/Claude/Scheduled/11-prep` (body `/one-on-one-prep`, "all 1:1s this week")
-  - `~/Documents/Claude/Scheduled/one-on-one-prep` (body "Run one-on-one-prep skill")
+  - `~/Claude/Scheduled/11-prep` (body `/one-on-one-prep`, "all 1:1s this week")
+  - `~/Claude/Scheduled/one-on-one-prep` (body "Run one-on-one-prep skill")
   - `~/.claude/scheduled-tasks/weekly-one-on-one-prep` (fully-specified weekly, next 7 days)
   → These three MAY all be the same 1:1-prep automation, created at different times / places. `weekly-one-on-one-prep` is the fully-fleshed-out version (embedded Steps 1–5, key Notion IDs, Known People table) and should be treated as the canonical config; `11-prep` and `one-on-one-prep` look like earlier/duplicate stubs. Confirm with Bruna before deleting either stub.
 

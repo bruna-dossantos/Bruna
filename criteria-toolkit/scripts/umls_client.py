@@ -10,7 +10,7 @@ Auth (modern flow — no TGT/ticket dance):
   The key is read from, in order:
     1. --api-key on the command line
     2. env var UMLS_API_KEY
-    3. ~/Documents/Claude/Projects/Credentials/umls_api_key.txt
+    3. ~/Claude/Projects/Credentials/umls_api_key.txt
 
 Get a key: sign in at https://uts.nlm.nih.gov -> profile -> "Generate API Key".
 
@@ -41,7 +41,7 @@ from pathlib import Path
 import requests
 
 BASE = "https://uts-ws.nlm.nih.gov/rest"
-KEY_FILE = Path.home() / "Documents/Claude/Projects/Credentials/umls_api_key.txt"
+KEY_FILE = Path.home() / "Claude/Projects/Credentials/umls_api_key.txt"
 
 # Optional user-editable overrides, loaded if present (merged over built-ins).
 # Shape: {"synonyms": {"term": ["alt lookup", ...]}, "manual": {"term": "gloss"}}

@@ -17,8 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import resolver as R
 
 HOME=os.path.expanduser("~")
-MASTER=f"{HOME}/Documents/Claude/Projects/Linear Master Data"
-OUT=f"{HOME}/Documents/Claude/Projects/Criteria Updates"
+MASTER=f"{HOME}/Claude/Projects/Linear Master Data"
+OUT=f"{HOME}/Claude/Projects/Criteria Updates"
 WORKDIR=f"{OUT}/.recon_work"          # payer source lists + payer-linear-mapper output live here
 CROSSWALK=f"{MASTER}/payer_project_crosswalk.csv"
 PROJECTS=f"{MASTER}/insurance_projects.csv"

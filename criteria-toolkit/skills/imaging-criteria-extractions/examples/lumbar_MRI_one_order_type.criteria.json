@@ -1,0 +1,22 @@
+{
+  "policy": {"lcd": "example", "title": "MRI Lumbar Spine — ONE order type, internal OR", "payer": "Example"},
+  "groups": [{
+    "group_label": "MRI",
+    "codes": [{
+      "code": "72148", "description": "MRI lumbar spine w/o dye", "modality": "MRI", "contrast": "Without contrast",
+      "order_types": [{
+        "order_type": "MRI Lumbar Spine — Diagnostic",
+        "context": {"stage": "Initial", "condition": "Low back pain", "product": null, "category": null},
+        "logic_expression": "C1 AND (C2 OR (C3 AND C4)) AND C5",
+        "_note": "ONE order type: red-flag route (C2) OR failed-conservative route (C3+C4) share the same docs + exclusion, so they OR *inside* this order type — not a split.",
+        "criteria": [
+          {"n": 1, "title": "Low back pain present", "type": "CLINICAL_INDICATION", "definition": "The patient has documented low back pain.", "source": "example"},
+          {"n": 2, "title": "Red-flag indication", "type": "CLINICAL_INDICATION", "definition": "At least one red flag: neurologic deficit on exam, suspected cauda equina syndrome, or suspected spinal infection or malignancy.", "source": "example"},
+          {"n": 3, "title": "Conservative therapy trial", "type": "CLINICAL_INDICATION", "definition": "At least 6 weeks of conservative treatment completed without adequate relief.", "source": "example"},
+          {"n": 4, "title": "Documentation recency", "type": "DOCUMENTATION", "definition": "Exam or conservative-treatment documentation dated within 6 months before the order.", "source": "example"},
+          {"n": 5, "title": "MRI aneurysm-clip exclusion", "type": "EXCLUSION", "definition": "Not covered when the patient has metallic clips on vascular aneurysms.", "source": "example"}
+        ]
+      }]
+    }]
+  }]
+}

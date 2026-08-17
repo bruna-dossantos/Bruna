@@ -1,0 +1,8 @@
+# OS / build junk — keep it out of the skill repo
+.DS_Store
+**/__pycache__/
+*.pyc
+*.zip
+**/.venv/
+**/.venv-sheets/
+**/*.egg-info/

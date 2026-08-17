@@ -1,0 +1,7 @@
+# CLAUDE.md and AGENTS.md files (excludes worktrees, marketplaces)
+/Users/brunadossantos/Documents/Claude/Archives/Claude-Cleanup-2026-07-22/quarantine/superseded/CLAUDE.md
+/Users/brunadossantos/Documents/Claude/Projects/Criteria Updates/AGENTS.md
+/Users/brunadossantos/Documents/Claude/Projects/DME/AGENTS.md
+/Users/brunadossantos/Documents/Claude/Projects/Denial Analyzer/AGENTS.md
+/Users/brunadossantos/Documents/Claude/Projects/Financial/AGENTS.md
+/Users/brunadossantos/Projects/Bruna/CLAUDE.md

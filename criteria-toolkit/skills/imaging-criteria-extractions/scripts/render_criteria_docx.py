@@ -3,7 +3,7 @@
 render_criteria_docx.py  —  criteria .docx in the Tennr house template (SKILL Step 6)
 
 Matches the format of the exemplar
-`Criteria Updates/E0470 Nevada Medicaid — Checklist Format.docx`:
+`Criteria Updates/Criteria Docs/E0470 Nevada Medicaid — Checklist Format.docx`:
   - metadata table (Service Line, Plan Category, Policy Source, HCPCS Codes Covered)
   - Doc Criteria section
   - per code/order type: a colored SECTION BANNER, then each criterion as a badged

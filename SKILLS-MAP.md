@@ -1,4 +1,4 @@
-# Skills Map — ~/Projects/Bruna
+# Skills Map — ~/Claude/os
 
 **What this repo is:** the *workshop* where skills are built and edited. It is **not**
 what runs day-to-day — the skills that actually run are the **installed plugin** versions.

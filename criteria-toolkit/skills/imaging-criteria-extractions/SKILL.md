@@ -59,6 +59,16 @@ level up (it spans all policies), not inside a run folder.
 - **Generation is a loop, not one pass** — list rules first, cover them, check back,
   regenerate. The evaluator is strict + per-criterion + missing→FALSE, so criteria
   must be self-contained with explicit pass-throughs. ([[criteria-evaluator]])
+- **Tennr left-side format** — write each criterion as a declarative requirement with
+  explicit numbered AND/OR sub-items, never a run-on sentence:
+  `The patient's medical records must document at least one of the following (1 or 2 or 3):`
+  then `1. … 2. … 3. …` (use "all of the following" for AND). Write absolute exclusions
+  as gates — `The patient does NOT have any of the following: 1. … 2. …` (evaluates TRUE
+  when none present, so no extra pass-through). A criterion that only applies in some
+  cases ends with a plain scoping sentence that doubles as the evaluator pass-through:
+  `This requirement applies only when …; otherwise this criterion is considered met.`
+  Always "patient" (never member/beneficiary); notes inline, never parenthetical.
+  (See the `criteria-writer-imaging` quality-rules + [[criteria-evaluator]].)
 
 ## Setup (once)
 - **API keys** present: `~/Claude/Projects/Credentials/umls_api_key.txt`

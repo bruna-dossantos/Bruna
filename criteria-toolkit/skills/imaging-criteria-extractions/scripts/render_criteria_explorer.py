@@ -174,6 +174,24 @@ PAGE = r"""<!doctype html>
   .odterm{font-weight:700;font-size:12px} .odrev{font-size:10px;font-weight:700;color:#fff;background:var(--cli);border-radius:5px;padding:1px 6px;margin-left:6px}
   .odrow{font-size:12px;margin:2px 0} .odrow b{color:var(--cli)}
   .none{color:var(--mut);font-size:12px;font-style:italic;padding:4px 10px}
+  /* review layer — flag criteria to REMOVE + ADD indications */
+  .rev{display:inline-flex;gap:4px;margin-left:8px}
+  .rev button, .addind{font-size:10px;font-weight:700;padding:1px 8px;border-radius:6px;border:1px solid var(--line);cursor:pointer;background:#fff;color:var(--mut)}
+  .rev .rmv.on{background:var(--warn);color:#fff;border-color:var(--warn)}
+  .crit.rv-remove{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn) inset;opacity:.72}
+  .reason{display:none;width:calc(100% - 20px);margin:6px 10px 8px;font-size:11px;padding:4px 6px;border:1px solid var(--warn);border-radius:6px;font-family:inherit}
+  .crit.rv-remove > .reason{display:block}
+  .addind{margin-left:8px;color:var(--ok);border-color:var(--ok)}
+  .addbox{display:none;width:calc(100% - 2px);margin:6px 0 4px;font-size:12px;padding:6px 8px;border:1px solid var(--ok);border-radius:8px;font-family:inherit;min-height:44px}
+  .code.adding .addbox{display:block}
+  #revfab{position:fixed;right:16px;bottom:16px;z-index:60;background:var(--ink);color:#fff;border:0;border-radius:22px;padding:10px 15px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.3);font-weight:700;font-size:13px}
+  #revpanel{position:fixed;right:16px;bottom:60px;z-index:60;width:min(560px,93vw);max-height:64vh;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.28);display:none;flex-direction:column}
+  #revpanel.open{display:flex}
+  #revpanel .rh{padding:8px 12px;border-bottom:1px solid var(--line);font-weight:700;display:flex;align-items:center;gap:8px;font-size:13px}
+  #revnote{flex:1;min-height:180px;margin:0;border:0;padding:10px 12px;font:12px/1.5 ui-monospace,Menlo,monospace;resize:none;white-space:pre;overflow:auto;color:var(--ink)}
+  #revpanel .rrow{display:flex;gap:8px;padding:8px 12px;border-top:1px solid var(--line);align-items:center}
+  #revpanel .rrow button{padding:6px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:#fff;font-weight:600}
+  #revpanel .rrow .primary{background:var(--pol);color:#fff;border-color:var(--pol)}
   @media(max-width:900px){.wrap{grid-template-columns:1fr;height:auto}.pdfpane{height:65vh}}
 </style></head>
 <body>
@@ -199,6 +217,12 @@ PAGE = r"""<!doctype html>
     <div id="scroll" style="flex:1;overflow:auto;width:100%"></div>
   </div>
   <div class="pane body" id="tree"></div>
+</div>
+<button id="revfab">📋 Review (<span id="revn">0</span>)</button>
+<div id="revpanel">
+  <div class="rh">Review decisions — __TITLE__ <span id="revmeta" style="margin-left:auto;font-weight:400;color:var(--mut)"></span></div>
+  <textarea id="revnote" readonly placeholder="Flag criteria to 🗑 Remove, or ＋ Add indication under a code. Only your removals and additions collect here — everything else is kept. Then Copy and paste back into chat."></textarea>
+  <div class="rrow"><button class="primary" id="revcopy">Copy</button><button id="revclear">Clear all</button><span style="margin-left:auto;color:var(--mut);font-size:11px">saved in your browser</span></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script>
@@ -234,6 +258,7 @@ document.getElementById('prev').onclick=()=>showSingle(cur.pdf,cur.page-1,null);
 document.getElementById('next').onclick=()=>showSingle(cur.pdf,cur.page+1,null);
 document.getElementById('pdfpick').onchange=e=>showSingle(e.target.value,1,null);
 
+function revBtns(){return `<span class="rev"><button class="rmv" data-act="remove" title="Flag this criterion to be removed">🗑 Remove</button></span>`}
 function odBlock(od){
   const rows=od.lines.map(([k,v])=>`<div class="odrow"><b>${esc(k)}:</b> ${esc(v)}</div>`).join('');
   return `<div class="block cli"><div class="blbl">🩺 Clinical interpretation</div>
@@ -241,6 +266,7 @@ function odBlock(od){
 }
 function critCard(code,otLabel,cr){
   const loc=cr.locs&&cr.locs[0];
+  const cid=code+' · C'+cr.n+' · '+cr.title;
   const jump=loc?`<span class="jump">↦ show in policy · ${esc(loc.source_pdf)} p${loc.page}</span>`
                 :`<span class="jump no">no mapped policy location</span>`;
   const pol=cr.policy?`<div class="block pol"><div class="blbl">📄 Policy — the requirement</div>
@@ -248,9 +274,10 @@ function critCard(code,otLabel,cr){
       +(cr.list_not_inlined?`<div class="callout">⚠ ${esc(cr.list_not_inlined.what)}: ${cr.list_not_inlined.count.toLocaleString()} codes — see ${esc(cr.list_not_inlined.location)}</div>`:``)
       +(cr.source?`<div class="src">Source: ${esc(cr.source)}</div>`:``)+`</div>`:``;
   const cli=cr.op_defs.map(odBlock).join('');
-  return `<div class="crit" data-loc='${loc?esc(JSON.stringify(loc)):""}'>
+  return `<div class="crit" data-id="${esc(cid)}" data-label="${esc(cid)}" data-loc='${loc?esc(JSON.stringify(loc)):""}'>
     <div class="crithd"><span class="cbadge">${cr.n}</span><span class="ctitle">${esc(cr.title)}</span>
-      <span class="ctype">${esc(cr.type)}</span>${jump}</div>${pol}${cli}</div>`;
+      <span class="ctype">${esc(cr.type)}</span>${jump}${revBtns()}</div>${pol}${cli}
+    <input class="reason" placeholder="reason / change (optional)"></div>`;
 }
 function pathwayEl(code,pw){
   const pill=pw.n_mapped===pw.n_criteria?`<span class="pill">${pw.n_criteria} criteria · all mapped</span>`
@@ -262,13 +289,41 @@ function pathwayEl(code,pw){
     <div class="pwhd"><span class="tw">▶</span><span class="pwname">${esc(pw.order_type)}</span>${pill}${logic}</div>
     <div class="pwbody">${ctx}${crits||'<div class="none">No criteria.</div>'}</div></div>`;
 }
+const RKEY='review:'+document.title;
+let DEC=JSON.parse(localStorage.getItem(RKEY)||'{}');   // id -> {v:'remove',reason,label} | {v:'add',text,label}
+function saveDec(){localStorage.setItem(RKEY,JSON.stringify(DEC));renderNote();}
+function paintCrit(el){
+  const id=el.getAttribute('data-id'), d=DEC[id];
+  el.classList.toggle('rv-remove',!!d&&d.v==='remove');
+  const b=el.querySelector('.rev .rmv'); if(b)b.classList.toggle('on',!!d&&d.v==='remove');
+  const rin=el.querySelector(':scope > .reason'); if(rin&&d&&d.reason!=null)rin.value=d.reason;
+}
+function toggleRemove(el){
+  const id=el.getAttribute('data-id');
+  if(DEC[id]&&DEC[id].v==='remove')delete DEC[id];
+  else DEC[id]={v:'remove',reason:(DEC[id]&&DEC[id].reason)||'',label:el.getAttribute('data-label')};
+  paintCrit(el);saveDec();
+}
+function renderNote(){
+  const TITLE=(document.querySelector('h1').textContent||'').split('·')[0].trim();
+  const rem=Object.values(DEC).filter(d=>d.v==='remove');
+  const add=Object.values(DEC).filter(d=>d.v==='add'&&(d.text||'').trim());
+  document.getElementById('revn').textContent=rem.length+add.length;
+  document.getElementById('revmeta').textContent=rem.length+' remove · '+add.length+' add';
+  let s='REVIEW — '+TITLE+'\n';
+  if(rem.length)s+='\nREMOVE\n'+rem.map(d=>'- '+d.label+(d.reason?' — '+d.reason:'')).join('\n')+'\n';
+  if(add.length)s+='\nADD INDICATION\n'+add.map(d=>'- '+d.label+': '+d.text.trim()).join('\n')+'\n';
+  document.getElementById('revnote').value=(rem.length+add.length)?s:'';
+}
 function build(){
   const t=document.getElementById('tree'); t.innerHTML='';
   DATA.groups.forEach(g=>{
     if(g.group_label)t.insertAdjacentHTML('beforeend',`<div class="grouplbl">${esc(g.group_label)}</div>`);
     g.codes.forEach(c=>{
-      let h=`<div class="code"><div class="codehd">${esc(c.code)} — ${esc(c.description)}`+
-        (c.modality?` · ${esc(c.modality)}`:``)+(c.contrast?` · ${esc(c.contrast)}`:``)+`</div>`;
+      let h=`<div class="code" data-code="${esc(c.code)}"><div class="codehd">${esc(c.code)} — ${esc(c.description)}`+
+        (c.modality?` · ${esc(c.modality)}`:``)+(c.contrast?` · ${esc(c.contrast)}`:``)+
+        `<button class="addind" data-code="${esc(c.code)}">＋ Add indication</button></div>`+
+        `<textarea class="addbox" data-code="${esc(c.code)}" placeholder="Indication(s) to ADD for ${esc(c.code)} — describe the coverage indication you want added"></textarea>`;
       h+=c.pathways.map(pw=>pathwayEl(c.code,pw)).join('');
       h+=`</div>`; t.insertAdjacentHTML('beforeend',h);
     });
@@ -282,6 +337,26 @@ function build(){
     const raw=el.getAttribute('data-loc'); if(!raw)return;
     const loc=JSON.parse(raw); showSingle(loc.source_pdf,loc.page,loc.rects);
     document.getElementById('hint').textContent=loc.rule_id+' · match '+Math.round(loc.match*100)+'%';
+  });
+  // wire REMOVE on criteria (stopPropagation so it doesn't trigger the policy jump)
+  t.querySelectorAll('.crit[data-id]').forEach(el=>{
+    const b=el.querySelector('.rev .rmv');
+    if(b)b.onclick=ev=>{ev.stopPropagation();toggleRemove(el);};
+    const rin=el.querySelector(':scope > .reason');
+    if(rin){rin.onclick=e=>e.stopPropagation();rin.onkeydown=e=>e.stopPropagation();
+            rin.oninput=()=>{const d=DEC[el.getAttribute('data-id')];if(d){d.reason=rin.value;saveDec();}};}
+    paintCrit(el);
+  });
+  // wire ADD INDICATION per code
+  t.querySelectorAll('.code').forEach(codeEl=>{
+    const code=codeEl.getAttribute('data-code'), id='ADD · '+code;
+    const btn=codeEl.querySelector('.addind'), box=codeEl.querySelector('.addbox');
+    if(btn)btn.onclick=ev=>{ev.stopPropagation();codeEl.classList.toggle('adding');if(codeEl.classList.contains('adding')&&box)box.focus();};
+    if(box){
+      if(DEC[id]&&DEC[id].text){box.value=DEC[id].text;codeEl.classList.add('adding');}
+      box.onclick=e=>e.stopPropagation(); box.onkeydown=e=>e.stopPropagation();
+      box.oninput=()=>{const v=box.value;if(v.trim())DEC[id]={v:'add',text:v,label:code};else delete DEC[id];saveDec();};
+    }
   });
 }
 document.getElementById('expand').onclick=()=>document.querySelectorAll('.pathway').forEach(p=>p.classList.add('open'));
@@ -298,6 +373,10 @@ document.getElementById('q').addEventListener('input',e=>{
 const pick=document.getElementById('pdfpick');Object.keys(PDFS).forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;pick.appendChild(o)});
 build();
 showSingle(Object.keys(PDFS)[0],1,null);
+document.getElementById('revfab').onclick=()=>document.getElementById('revpanel').classList.toggle('open');
+document.getElementById('revcopy').onclick=()=>{const t=document.getElementById('revnote');if(!t.value)return;t.select();try{navigator.clipboard.writeText(t.value)}catch(e){document.execCommand('copy')}const b=document.getElementById('revcopy');b.textContent='Copied!';setTimeout(()=>b.textContent='Copy',1200);};
+document.getElementById('revclear').onclick=()=>{if(confirm('Clear all review flags?')){DEC={};localStorage.removeItem(RKEY);build();renderNote();}};
+renderNote();
 </script></body></html>"""
 
 

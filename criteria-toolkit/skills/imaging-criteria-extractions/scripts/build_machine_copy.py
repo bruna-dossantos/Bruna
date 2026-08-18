@@ -79,8 +79,11 @@ def main(argv=None):
     #    each order type is self-contained for an evaluator with no lookup.
     plat = copy.deepcopy(doc)
     for c, cr in flagged_criteria(plat):
+        # label from the criterion itself, so a NON-covered (negative-policy) set is
+        # never mislabeled "covered".
+        what = (cr.get("list_not_inlined") or {}).get("what") or "covered diagnoses"
         cr["definition"] = (cr.get("definition", "").rstrip()
-                            + f"\nThe covered diagnoses are one of the following {n} "
+                            + f"\nThe {what} are the following {n} "
                             f"ICD-10-CM codes: {codes_only}.")
         cr.pop("list_not_inlined", None)
     plat_json = out / f"{lcd}_criteria.PLATFORM.json"
@@ -93,14 +96,15 @@ def main(argv=None):
     written_once = {}
     for c, cr in flagged_criteria(md):
         key = (cr.get("list_not_inlined") or {}).get("what", "codes")
+        label = key if key != "codes" else "Covered ICD-10-CM diagnoses"
         if key not in written_once:
             cr["definition"] = (cr.get("definition", "").rstrip()
-                                + f"\nCovered ICD-10-CM diagnoses (all {n}): {inline_block}.")
+                                + f"\n{label} (all {n}): {inline_block}.")
             written_once[key] = f"{c['code']} · {cr.get('title')}"
             injected += 1
         else:
             cr["definition"] = (cr.get("definition", "").rstrip()
-                                + f"\nCovered ICD-10-CM diagnoses (all {n}): the same set written "
+                                + f"\n{label} (all {n}): the same set written "
                                 f"out under {written_once[key]} (also in {lcd}_group1_dx_codes.csv).")
             referenced += 1
         cr.pop("list_not_inlined", None)

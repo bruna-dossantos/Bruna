@@ -79,19 +79,24 @@ def detect(doc, skip_resolved=False):
     return out
 
 
+def _dot(s):
+    """One trailing period, never a doubled one."""
+    return s.rstrip().rstrip(".") + "."
+
+
 def _clause(od):
-    parts = [f'"{od.get("term","")}" means {od["operational_definition"]["rule"]}']
     o = od["operational_definition"]
+    parts = [_dot(f'"{od.get("term","")}" means {o["rule"]}')]
     if o.get("positives"):
-        parts.append("Counts: " + "; ".join(o["positives"]) + ".")
+        parts.append(_dot("Counts: " + "; ".join(o["positives"])))
     if o.get("negatives"):
-        parts.append("Does not count: " + "; ".join(o["negatives"]) + ".")
+        parts.append(_dot("Does not count: " + "; ".join(o["negatives"])))
     if o.get("time_window"):
-        parts.append("Assessed over: " + o["time_window"] + ".")
+        parts.append(_dot("Assessed over: " + o["time_window"]))
     if o.get("treatment_handling") and o["treatment_handling"].lower() not in ("n/a", "n/a (imaging)"):
-        parts.append("Treatment: " + o["treatment_handling"] + ".")
+        parts.append(_dot("Treatment: " + o["treatment_handling"]))
     if o.get("missing_data_handling"):
-        parts.append("If not documented: " + o["missing_data_handling"] + ".")
+        parts.append(_dot("If not documented: " + o["missing_data_handling"]))
     return " ".join(parts)
 
 

@@ -11,10 +11,42 @@ Then classifies each (code|drug x project) vs the tickets export:
 
 Usage: python3 reconcile.py "<order type export>.csv"
 """
-import csv, re, sys, os, datetime
+import csv, re, sys, os, datetime, json
 from collections import Counter, defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import resolver as R
+
+# ---- Aug-2026 export schema helpers -----------------------------------------
+_BAD_SL={"unmapped","testing",""}
+def parse_row_state(row):
+    """Authoritative state: order_rule_states (JSON array e.g. ["OH"]) else
+    criteria_generation_state_codes (bare 'OH'). Returns a raw code/name or ''."""
+    for col in ("order_rule_states","criteria_generation_state_codes"):
+        v=(row.get(col) or "").strip()
+        if not v or v=="[]": continue
+        try:
+            arr=json.loads(v)
+            if isinstance(arr,list) and arr: return str(arr[0]).strip()
+        except Exception: pass
+        v=v.strip('[]"\' ')
+        if v: return v.split(",")[0].strip().strip('"\' ')
+    return ""
+
+def true_service_line(row):
+    """Service line = R (mapped_service_lines) if real, else Q (existing_service_line) if real,
+    else '' (needs-mapping). 'Real' excludes Unmapped/testing/blank."""
+    r=(row.get("mapped_service_lines") or "").strip()
+    if r and r.lower() not in _BAD_SL: return r
+    q=(row.get("existing_service_line") or "").strip()
+    if q and q.lower() not in _BAD_SL: return q
+    return ""
+
+def pick_creator(row):
+    """Attribution: criteria_generation_user_* (true author) else v1_created_by_* (mover fallback)."""
+    n=(row.get("criteria_generation_user_name") or "").strip()
+    e=(row.get("criteria_generation_user_email") or "").strip()
+    if e or n: return (n,e)
+    return ((row.get("v1_created_by_name") or "").strip(), (row.get("v1_created_by_email") or "").strip())
 
 HOME=os.path.expanduser("~")
 MASTER=f"{HOME}/Claude/Projects/Linear Master Data"
@@ -25,6 +57,9 @@ PROJECTS=f"{MASTER}/insurance_projects.csv"
 TICKETS=f"{MASTER}/insurance_initiative_issues_latest.csv"
 DONE_STATES={"Done","AutoGen: Done"}
 FLIPPABLE={"Not Started","In Progress","In Review","Reviewed - Needs Revision","Policy Research"}
+# Crosswalk sentinel: a key tagged with this in `linear_project` means resolve from the ORDER TYPE
+# NAME (brand + state), not a fixed project. Used for coarse blank-payer keys.
+ORDERNAME_ONLY="ORDER_TYPE_NAME_ONLY"
 
 def norm(s): return re.sub(r'[^a-z0-9]+','',(s or '').lower())
 def pnorm(s):
@@ -105,7 +140,7 @@ def main(src):
     for r in csv.DictReader(open(TICKETS)):
         proj=r['Project'].strip()
         url=r.get('URL') or f"https://linear.app/tennr-product/issue/{r['Identifier']}"
-        ref={"id":r['Identifier'],"state":r['State'].strip(),"url":url}
+        ref={"id":r['Identifier'],"state":r['State'].strip(),"url":url,"title":r.get('Title','').strip()}
         if r['Team']=='DME Criteria':
             c=clean_code(r['Title'])
             if c: dme_idx[(c,proj)].append(ref)
@@ -131,20 +166,39 @@ def main(src):
     for r in rows:
         fam=r['payer_family'].strip(); pay=r['insurance_payer'].strip(); cat=r['plan_category'].strip()
         orn=r['order_rule_name']; proj=None; basis=None
-        if (fam,pay,cat) in xwalk and xwalk[(fam,pay,cat)][0]:
-            proj,basis=xwalk[(fam,pay,cat)][0],"crosswalk"
+        state_raw=parse_row_state(r); state_full=R.norm_state(state_raw)   # authoritative H/O state
+        tsl=true_service_line(r); cname,cemail=pick_creator(r)
+        xw_proj = xwalk[(fam,pay,cat)][0] if (fam,pay,cat) in xwalk else ""
+        xw_ordername_only = (xw_proj == ORDERNAME_ONLY)   # tagged: resolve from order type name only
+        if xw_ordername_only: xw_proj = ""
+        def _guard(p, b):
+            # STATE GUARD: if a state-specific project disagrees with the row's authoritative state
+            # (H/O), correct to the right state's project when it exists, else flag for review.
+            if state_full:
+                ps=R.project_state(p)
+                if ps and not R.states_match(state_full, ps):
+                    c=R.swap_project_state(p, state_full)
+                    return (c,b+"+state-corrected") if c in projset else ("","unresolved:crosswalk-state-conflict:"+p)
+            return (p,b)
+        # 1) precise crosswalk (specific payer) — payer pins the exact project. SKIPPED when tagged.
+        if xw_proj and not xw_ordername_only:
+            proj,basis=_guard(xw_proj,"crosswalk")
+        # 2) order name + state waterfall (brand-MCO from name, plus Medicaid/BCBS state rules).
         if not proj:
-            p,m=R.resolve_family(fam,cat,pay,orn,projset)
-            if p: proj,basis=p,m
+            tag="xwalk-tagged:" if xw_ordername_only else ""
+            p,m=R.resolve_family(fam,cat,pay,orn,projset,state=state_full)
+            if p: proj,basis=p,tag+m
             else:
-                p2,m2=R.resolve_ordername(orn,projset,slug2name,slug)
-                if p2 and R.lob_ok(cat,p2): proj,basis=p2,m2
+                p2,m2=R.resolve_ordername(orn,projset,slug2name,slug,state=state_full)
+                if p2 and R.lob_ok(cat,p2): proj,basis=p2,tag+m2
                 else:
-                    nm,nb=name_resolve(pay,cat)
+                    nm,nb=name_resolve(pay,cat) if not xw_ordername_only else (None,None)
                     if nm: proj,basis=nm,nb
-                    else: basis="unresolved:"+(m2 if m2.startswith("ordername") and m!="need-specific-payer" else m)
+                    else: basis="unresolved:"+tag+(m2 if m2.startswith("ordername") and m!="need-specific-payer" else m)
         basis_ct[basis]+=1
-        res.append({**r,"resolved_project":proj or "","project_uuid":projects.get(proj,"") if proj else "","basis":basis})
+        res.append({**r,"service_line":tsl,"true_service_line":tsl,"state":state_raw,
+                    "criteria_creator_name":cname,"criteria_creator_email":cemail,
+                    "resolved_project":proj or "","project_uuid":projects.get(proj,"") if proj else "","basis":basis})
 
     resolved=sum(1 for x in res if x["resolved_project"])
     print(f"\nresolved {resolved:,}/{len(rows):,} ({100*resolved/len(rows):.1f}%)")
@@ -177,14 +231,52 @@ def main(src):
     # ---- write outputs ----
     os.makedirs(OUT, exist_ok=True)
     with open(f"{OUT}/row_resolution_{stamp}.csv","w",newline="") as f:
-        cols=["service_line_category","code","service_line","payer_family","insurance_payer","plan_category","resolved_project","project_uuid","basis"]
+        cols=["service_line_category","code","true_service_line","existing_service_line","mapped_service_lines",
+              "state","criteria_creator_name","criteria_creator_email","payer_family","insurance_payer",
+              "plan_category","resolved_project","project_uuid","basis"]
         w=csv.DictWriter(f,fieldnames=cols,extrasaction="ignore"); w.writeheader(); w.writerows(res)
     from build_workbook import build
     build(detail, res, buckets, vol, f"{OUT}/Order_Rule_Linear_Reconciliation_{stamp}.xlsx", stamp)
+    # per-row "Order Type → Ticket" map (living artifact for the shared Google Sheet)
+    from build_map import build as build_map
+    map_csv=f"{OUT}/Order_Type_Ticket_Map_{stamp}.csv"
+    map_rows = build_map(res, dme_idx, drug_idx, clean_code, norm, DONE_STATES, FLIPPABLE,
+                         map_csv, f"{OUT}/Order_Type_Ticket_Map_{stamp}.xlsx", stamp)
+    print(f"\nOrder Type → Ticket map: {len(map_rows):,} rows → {map_csv}")
+    # ---- Ticket Actions (per code/drug × project, deduped, actionable) ----
+    ACTION_VERDICTS=["FLIP","NEW-TIX","CONFLICT","UNIT-GAP"]
+    seen={}
+    for x in map_rows:
+        v=x["verdict"]
+        if v not in ACTION_VERDICTS: continue
+        key=(v,x["hcpc"],x["service_line_category"],x["resolved_project"])
+        e=seen.get(key)
+        if not e:
+            e={"verdict":v,"service_line_category":x["service_line_category"],
+               "true_service_line":x["true_service_line"],"code":x["hcpc"],
+               "resolved_project":x["resolved_project"],"order_rule_count":0,
+               "order_rule_example":x["order_rule_name"],"ticket_ids":x["ticket_ids"],
+               "ticket_titles":x["ticket_titles"],"ticket_states":x["ticket_states"],"ticket_urls":x["ticket_urls"]}
+            seen[key]=e
+        e["order_rule_count"]+=1
+        if not e["true_service_line"] and x["true_service_line"]: e["true_service_line"]=x["true_service_line"]
+    actions=sorted(seen.values(),key=lambda r:(ACTION_VERDICTS.index(r["verdict"]),r["service_line_category"],-r["order_rule_count"]))
+    acts_csv=f"{OUT}/Ticket_Actions_{stamp}.csv"
+    with open(acts_csv,"w",newline="",encoding="utf-8") as f:
+        acols=["verdict","service_line_category","true_service_line","code","resolved_project",
+               "order_rule_count","order_rule_example","ticket_ids","ticket_titles","ticket_states","ticket_urls"]
+        w=csv.DictWriter(f,fieldnames=acols,extrasaction="ignore"); w.writeheader(); w.writerows(actions)
+    print(f"Ticket Actions: {len(actions):,} rows → {acts_csv} · "+" ".join(f"{k}={v}" for k,v in Counter(a['verdict'] for a in actions).items()))
     # unique payer -> project mapping with confidence (standard output)
     from build_payer_mapping import build as build_mapping
     map_out, map_dist = build_mapping(res, WORKDIR,
         f"{OUT}/Payer_Project_Mapping_{stamp}.csv", f"{OUT}/Payer_Project_Mapping_{stamp}.xlsx")
+    # ---- Payer Mapping — Needs Review (low confidence) ----
+    nr=[r for r in map_out if int(r.get("confidence",0))<3]
+    from build_payer_mapping import COLS as _MAPCOLS
+    with open(f"{OUT}/Payer_Mapping_Needs_Review_{stamp}.csv","w",newline="",encoding="utf-8") as f:
+        w=csv.DictWriter(f,fieldnames=_MAPCOLS,extrasaction="ignore"); w.writeheader(); w.writerows(nr)
+    print(f"Payer Mapping needs-review: {len(nr):,} rows (confidence<3) → {OUT}/Payer_Mapping_Needs_Review_{stamp}.csv")
     resolved_map=sum(1 for r in map_out if r["confidence"]>0)
     print(f"\npayer→project mapping: {len(map_out):,} unique combos "
           f"({resolved_map:,} resolved, {len(map_out)-resolved_map:,} unresolved) · "

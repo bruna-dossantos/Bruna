@@ -59,6 +59,16 @@ level up (it spans all policies), not inside a run folder.
 - **Generation is a loop, not one pass** — list rules first, cover them, check back,
   regenerate. The evaluator is strict + per-criterion + missing→FALSE, so criteria
   must be self-contained with explicit pass-throughs. ([[criteria-evaluator]])
+- **Tennr left-side format** — write each criterion as a declarative requirement with
+  explicit numbered AND/OR sub-items, never a run-on sentence:
+  `The patient's medical records must document at least one of the following (1 or 2 or 3):`
+  then `1. … 2. … 3. …` (use "all of the following" for AND). Write absolute exclusions
+  as gates — `The patient does NOT have any of the following: 1. … 2. …` (evaluates TRUE
+  when none present, so no extra pass-through). A criterion that only applies in some
+  cases ends with a plain scoping sentence that doubles as the evaluator pass-through:
+  `This requirement applies only when …; otherwise this criterion is considered met.`
+  Always "patient" (never member/beneficiary); notes inline, never parenthetical.
+  (See the `criteria-writer-imaging` quality-rules + [[criteria-evaluator]].)
 
 ## Setup (once)
 - **API keys** present: `~/Claude/Projects/Credentials/umls_api_key.txt`
@@ -176,6 +186,11 @@ Two self-contained explorers (PDFs base64-embedded; internet once for the PDF.js
   (amber, reviewer PENDING). Best for "walk the pathways / show me the source of a rule."
   Criterion→policy link comes from the traceability `became` map (falls back title-wise
   so identical criteria across codes all link).
+  **Built-in review layer:** every criterion has a **🗑 Remove** flag (+ reason) and every
+  code has a **＋ Add indication** box; a floating **📋 Review** panel collects only the
+  removals and additions into a copy-paste note (persisted in localStorage). Unflagged =
+  kept. The reviewer copies the note back; the operator applies removals (drop the
+  criterion) and additions (author the new indication), then re-renders.
 ```
 $PY  scripts/build_traceability.py $OUT/<LCD>_rule_inventory.json $OUT/<LCD>_criteria.resolved.json --out $OUT/<LCD>_traceability.json
 $PYV scripts/locate_rules_in_pdf.py $OUT/<LCD>_rule_inventory.json --pdf $PDFS --out $OUT/<LCD>_rule_locations.json
@@ -255,6 +270,29 @@ Step 0 → 1 → 2 → 3 → (4,5,6,7,8,9 in any order) → 10 wraps them → 11
 render needs `locate` first. Step 9 & the PLATFORM copy need `$CODES`. Steps 5/8-locate
 hit the APIs/PDFs; the rest are offline. Run Step 11 (or `--organize`) only at the very
 end — once organized, `--flatten` before any re-generation.
+
+## Batch mode — many policies at once (`batch/imaging_criteria_batch.workflow.js`)
+Run the whole pipeline across a work-list with the `Workflow` tool (subagents). Per
+policy it fans out **Author (Opus)** → **QA (Opus, independent)** → **Summary (Haiku)**:
+the author agent extracts policy text from the staged PDFs, authors `criteria.json` +
+`resolutions.json` in Tennr format (Steps 0–3), then runs
+`close_loop.py --best-effort --render --organize` (Steps 4–11) to a finished, organized
+run folder; a separate agent verifies it; a final agent writes `_BATCH_SUMMARY.md/.html`.
+```
+Workflow({ scriptPath: ".../batch/imaging_criteria_batch.workflow.js",
+  args: { root: "<batch out dir>", policies: [ {
+    lcd, title, payer, ncd_baseline, article, service_line?, plan_category?, theme,
+    codes:[{code,description,modality,contrast}],
+    lcd_pdf, ncd_pdfs:[…], article_pdf,   // staged source PDFs
+    codes_csv? } ] } })                    // authoritative dx CSV; if omitted, extracted from the Article + flagged PENDING
+```
+Inputs, per the design decisions: **source PDFs staged on disk** (CMS blocks automated
+fetch — WebFetch 403 / curl captcha — so provide PDFs; they also enable the explorer),
+and an **authoritative dx code CSV per policy** (else auto-extracted + flagged). Posture
+is **best-effort drafts** — every policy finishes, everything `reviewer: PENDING`; the
+dashboard flags the weakest first. Model posture is **tiered** (Opus author+QA, Haiku
+summary). Cap the wave small (~5) — Step 5 shares one UMLS/BioPortal quota. Validate on a
+1–2 policy wave before scaling.
 
 ## Interpreter cheatsheet
 `$PYV` (venv): render_criteria_docx, render_criteria_pdf, render_extractions_doc,

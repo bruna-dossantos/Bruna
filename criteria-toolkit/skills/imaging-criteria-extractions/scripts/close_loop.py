@@ -217,6 +217,12 @@ def main(argv=None):
              "--out-docx", str(out / f"{lcd}_extraction_fields_by_code.docx")], args.pyv)
         run([str(HERE / "build_traceability.py"), args.inventory, cj, "--out", str(out / f"{lcd}_traceability.json")], sys.executable)
         if args.pdfs:
+            # the HTML explorers need per-rule PDF locations; generate them here if the
+            # locate step wasn't run separately (render used to assume this file existed).
+            loc_path = out / f"{lcd}_rule_locations.json"
+            if not loc_path.exists():
+                run([str(HERE / "locate_rules_in_pdf.py"), args.inventory, "--pdf"] + args.pdfs
+                    + ["--out", str(loc_path)], args.pyv)
             run([str(HERE / "render_traceability_html.py"), str(out / f"{lcd}_traceability.json"),
                  "--locations", str(out / f"{lcd}_rule_locations.json"), "--pdf"] + args.pdfs
                 + ["--title", lcd, "--out", str(out / f"{lcd}_traceability.html")], sys.executable)

@@ -26,7 +26,29 @@ def parse_state(*texts):
         for ab,full in ABBR.items():
             if re.search(r'\b'+ab+r'\b',tl): return full
     return None
+def norm_state(s):
+    """Normalize an authoritative state signal (2-letter code or full name) to a full lowercase
+    state name, or None. Used for order_rule_states / criteria_generation_state_codes."""
+    s=(s or '').strip().lower()
+    if not s: return None
+    if s in STATES: return s
+    if s in ABBR: return ABBR[s]
+    return None
 def title(s): return " ".join(w.capitalize() for w in s.split())
+
+def project_state(name):
+    """Trailing '(State)' of a project name → lowercase state (raw if unrecognized), else None."""
+    m=re.search(r'\(([^)]+)\)\s*$', name or '')
+    if not m: return None
+    raw=m.group(1).strip().lower()
+    return norm_state(raw) or raw
+def states_match(a, b):
+    """Tolerant state compare — first 4 chars absorbs project-name typos (e.g. Pennslyvania)."""
+    if not a or not b: return False
+    return a[:4]==b[:4]
+def swap_project_state(name, state_full):
+    """Replace a project's trailing '(State)' with the row's authoritative state."""
+    return re.sub(r'\([^)]+\)\s*$', f'({title(state_full)})', name or '').strip()
 
 # national families: family + category -> single project (state-independent)
 NAT={
@@ -39,8 +61,9 @@ NAT={
  'Kaiser Permanente':{'COMMERCIAL':'KAISER PERMANENTE'},
 }
 
-def resolve_family(fam, cat, payer, orn, projset):
-    """Layer 2/3: family+category(+state). Returns (project_name|None, basis)."""
+def resolve_family(fam, cat, payer, orn, projset, state=None):
+    """Layer 2/3: family+category(+state). Returns (project_name|None, basis).
+    `state`: authoritative full-name state (H/O columns), preferred over name text-mining."""
     fam=(fam or '').strip(); cat=(cat or '').strip()
     if cat=='MEDICARE':
         return ('Medicare','family+cat')
@@ -48,7 +71,7 @@ def resolve_family(fam, cat, payer, orn, projset):
         p=NAT[fam][cat]
         return (p,'family+cat') if p in projset else (None,'target-missing:'+p)
     if fam=='Blue Cross Blue Shield':
-        st=parse_state(payer,orn)
+        st=state or parse_state(payer,orn)
         if not st:
             if not (payer or '').strip():
                 if cat=='COMMERCIAL' and 'Anthem Blue Cross Blue Shield' in projset:
@@ -66,7 +89,7 @@ def resolve_family(fam, cat, payer, orn, projset):
             return (cand,'family+cat+state') if cand in projset else (None,'bcbs-medicaid-need-review')
         return (None,'bcbs-other')
     if fam=='Medicaid':
-        st=parse_state(payer,orn)
+        st=state or parse_state(payer,orn)
         if not st: return (None,'medicaid-need-state')
         cand=f"Medicaid {title(st)}"
         return (cand,'family+state') if cand in projset else (None,'medicaid-no-state-proj:'+title(st))
@@ -89,9 +112,9 @@ BRAND=[
  (['bcbs','blue cross'], "Blue Cross Blue Shield Medicaid MCO ({S})"),
  (['uhc','unitedhealthcare','united healthcare','community'], "United Healthcare Community Medicaid MCO ({S})"),
 ]
-def resolve_ordername(orn, projset, slug2name, slug):
+def resolve_ordername(orn, projset, slug2name, slug, state=None):
     n=(orn or '').lower()
-    st=parse_state(orn)
+    st=state or parse_state(orn)
     stt=title(st) if st else None
     for kws,tmpl in BRAND:
         if any(k in n for k in kws):

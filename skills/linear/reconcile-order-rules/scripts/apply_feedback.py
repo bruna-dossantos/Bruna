@@ -27,7 +27,7 @@ MASTER=f"{HOME}/Claude/Projects/Linear Master Data"
 OUT=f"{HOME}/Claude/Projects/Criteria Updates"
 CROSSWALK=f"{MASTER}/payer_project_crosswalk.csv"
 PROJECTS=f"{MASTER}/insurance_projects.csv"
-XCOLS=["payer_family","insurance_payer","plan_category","linear_project","project_uuid","source","effective"]
+XCOLS=["payer_family","insurance_payer","plan_category","linear_project","project_uuid","resolution_mode","source","validated_by","effective"]
 TRUTHY={"x","y","yes","true","1","✓","validated","done"}
 UUID_RE=re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I)
 # map the workbook's display headers (and the machine csv headers) onto canonical field names
@@ -57,8 +57,18 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("feedback"); ap.add_argument("--crosswalk",default=CROSSWALK)
     ap.add_argument("--projects",default=PROJECTS); ap.add_argument("--dry-run",action="store_true")
+    ap.add_argument("--by",default="bruna@tennr.com",help="validated_by stamp for new/updated rows")
     a=ap.parse_args()
     stamp=datetime.date.today().isoformat(); month=stamp[:7]
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+    # Sheet is the crosswalk's home: pull first so manual Sheet edits are honored (canonical path only).
+    use_sheet = (os.path.abspath(a.crosswalk)==os.path.abspath(CROSSWALK))
+    if use_sheet and not a.dry_run:
+        try:
+            import crosswalk_sheets as _X; _X.pull()
+        except Exception as e:
+            print(f"(crosswalk Sheet pull skipped — {e}; using local CSV)")
 
     proj_by_name={r['Name'].strip():r['UUID'].strip() for r in csv.DictReader(open(a.projects))}
     proj_by_uuid={v:k for k,v in proj_by_name.items()}
@@ -110,7 +120,8 @@ def main():
             problems.append(f"  unrecognized validated value '{v}': {who}"); continue
 
         newrow={"payer_family":fam,"insurance_payer":pay,"plan_category":cat,
-                "linear_project":proj,"project_uuid":uuid,"source":"Bruna-validated","effective":month}
+                "linear_project":proj,"project_uuid":uuid,"resolution_mode":"fixed_project",
+                "source":"Bruna-validated","validated_by":a.by,"effective":month}
         key=(fam,pay,cat)
         if key in xindex:
             ex=xindex[key]
@@ -150,6 +161,13 @@ def main():
         w=csv.DictWriter(f,fieldnames=XCOLS,extrasaction="ignore"); w.writeheader(); w.writerows(xrows)
     print(f"wrote {len(xrows)} crosswalk rows → {a.crosswalk}")
     print("These now win automatically on the next reconcile run.")
+
+    # push the updated crosswalk back to its shared Google Sheet (canonical path only).
+    if use_sheet:
+        try:
+            import crosswalk_sheets as _X; _X.push()
+        except Exception as e:
+            print(f"(crosswalk Sheet push skipped — {e}; local CSV is updated)")
 
 if __name__=="__main__":
     main()

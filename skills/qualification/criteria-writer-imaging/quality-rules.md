@@ -37,6 +37,13 @@ Stacey's team uses this memory aid: "The left side is the judge — the decision
 - Write in declarative, factual statements: "Patient has a BMI > 35" ✅
 - Use **AND** and **OR** explicitly — don't leave logic implicit
 - Break complex logic into short numbered sub-items
+- **Use the declarative numbered template — never a run-on sentence.**
+  - Requirement (OR): `The patient's medical records must document at least one of the following (1 or 2 or 3):` then `1. …` `2. …` `3. …` — one alternative per numbered line.
+  - Requirement (AND): `The patient's medical records must document all of the following:` then numbered items.
+  - Exclusion / Contraindication Gate: `The patient does NOT have any of the following: 1. … 2. …` — a negative gate evaluates TRUE when none are present, so it needs no extra pass-through.
+  - ✅ `The patient's medical records must document at least one of the following (1 or 2 or 3): 1. Signs or symptoms of disease 2. Suspicion of disease 3. A preliminary or provisional diagnosis`
+  - ❌ `The study is medically appropriate given the patient's symptoms and preliminary diagnosis, and the record documents the signs and symptoms that warrant the test.` (run-on; alternatives buried)
+- **Give a conditional criterion an explicit pass-through.** A criterion that only applies in certain cases must end with a plain scoping sentence, so the strict, missing→FALSE evaluator doesn't sink the code when the trigger is absent: `This requirement applies only when …; otherwise this criterion is considered met.` (Not needed for negative gates, which already pass when absent.)
 - Use the exact verbatim language from the policy source — do not paraphrase or simplify
 - Bold key terms and conditions
 - Italicize document-type indicators (_Found in: Prescription_, _Found in: Medical Records_)

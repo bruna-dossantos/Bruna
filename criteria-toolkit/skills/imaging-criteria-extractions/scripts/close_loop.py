@@ -217,6 +217,10 @@ def main(argv=None):
              "--out-docx", str(out / f"{lcd}_extraction_fields_by_code.docx")], args.pyv)
         run([str(HERE / "build_traceability.py"), args.inventory, cj, "--out", str(out / f"{lcd}_traceability.json")], sys.executable)
         if args.pdfs:
+            # locate rules in the source PDFs FIRST — both HTML renderers require
+            # {lcd}_rule_locations.json, and nothing else generates it. Needs pdfplumber (pyv).
+            run([str(HERE / "locate_rules_in_pdf.py"), args.inventory,
+                 "--pdf"] + args.pdfs + ["--out", str(out / f"{lcd}_rule_locations.json")], args.pyv)
             run([str(HERE / "render_traceability_html.py"), str(out / f"{lcd}_traceability.json"),
                  "--locations", str(out / f"{lcd}_rule_locations.json"), "--pdf"] + args.pdfs
                 + ["--title", lcd, "--out", str(out / f"{lcd}_traceability.html")], sys.executable)

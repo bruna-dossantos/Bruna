@@ -50,6 +50,8 @@ SUFFIX_MAP = [
     ("_coverage_gaps.md", CHECKS),
     ("_resolver_report.md", CHECKS),
     ("_ambiguous_terms.json", CHECKS),
+    ("_extraction_review.md", CHECKS),
+    ("_extraction_review.csv", CHECKS),
     ("_extraction_fields_by_code.docx", HUMAN),
     ("_extraction_fields_by_code.md", HUMAN),
     ("_extraction_fields_by_code.pdf", HUMAN),

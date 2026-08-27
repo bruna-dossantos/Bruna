@@ -212,6 +212,11 @@ def main(argv=None):
         subprocess.run([sys.executable, str(HERE / "render_criteria_doc.py"), cj],
                        check=True, stdout=open(out / f"{lcd}_criteria_by_code.md", "w"))
         run([str(HERE / "build_extraction_fields.py"), cj, "--out", str(out / f"{lcd}_extraction_fields.csv")], sys.executable)
+        # ontology-grounding review/accept surface: bucket every recall concept by how much
+        # human review it needs (must_author / ungrounded / fuzzy_icd / grounded_ok).
+        run([str(HERE / "build_extraction_review.py"), str(out / f"{lcd}_extraction_fields.csv"),
+             "--out-md", str(out / f"{lcd}_extraction_review.md"),
+             "--out-csv", str(out / f"{lcd}_extraction_review.csv")], sys.executable)
         run([str(HERE / "render_extractions_doc.py"), str(out / f"{lcd}_extraction_fields.csv"),
              "--out-md", str(out / f"{lcd}_extraction_fields_by_code.md"),
              "--out-docx", str(out / f"{lcd}_extraction_fields_by_code.docx")], args.pyv)

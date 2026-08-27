@@ -25,6 +25,7 @@ downstream steps and drives find → fix → re-check to convergence.
 - `<LCD>_resolutions.json` + `<LCD>_resolver_report.md` — operational definitions
 - `<LCD>_criteria_by_code.md/.docx/.pdf` — Tennr-format criteria doc (PDF = give to Tennr)
 - `<LCD>_extraction_fields.csv` + `<LCD>_extraction_fields_by_code.md/.docx` — extraction fields
+- `<LCD>_extraction_review.md/.csv` — recall-concept accept/reject worklist (buckets: must_author / ungrounded / fuzzy_icd / grounded_ok)
 - `<LCD>_coverage_gaps.md` — criteria-vs-inventory gaps
 - `<LCD>_traceability.html` — rule-first explorer (policy→rules→criteria)
 - `<LCD>_criteria_explorer.html` — pathway-first explorer (pathway→criteria→click→policy; policy vs clinical split)
@@ -160,6 +161,13 @@ $PY scripts/build_extraction_fields.py $OUT/<LCD>_criteria.resolved.json --out $
 ```
 Helper — `expand_concepts.py` (shared): `validate` grounds model-proposed related
 concepts; `atoms` builds a synonym set; `test` gates recall/precision on labeled charts.
+**Review/accept surface:** right after this, close_loop (Step 10) runs
+`build_extraction_review.py` on the CSV to emit `<LCD>_extraction_review.md/.csv` — every
+recall concept bucketed by review need (`must_author` = no concept detected; `ungrounded`
+= detected but no UMLS CUI; `fuzzy_icd` = ICD from BioPortal fuzzy search, verify each;
+`grounded_ok` = UMLS-atom-grounded, lowest risk). Offline (reads the CSV); all fields stay
+reviewer PENDING. Needs a networked extraction run — the atom/annotator grounding is what
+populates the buckets. The recall/precision `test` gate still needs labeled charts.
 
 ## Step 6 — `render_extractions_doc.py` · companion doc
 Mirrors the criteria doc on the extraction side (code→order type→criterion→fields).

@@ -152,10 +152,26 @@ $PYV scripts/render_criteria_pdf.py  $OUT/<LCD>_criteria.resolved.json --out $OU
 ```
 docx/pdf need `$PYV`. Tennr house format: banners, □ checklist, policy-quote callouts, appendix.
 
-## Step 5 — `build_extraction_fields.py` · extraction fields (UMLS atoms)
-Per criterion: detects clinical concepts (BioPortal annotator), builds each field's
-recall set from **UMLS atoms** (+ ICD from atoms), writes a "represented in a
-variety of ways: …" directive. Needs `requests` → `$PY`.
+## Step 5 — extraction fields · **DEFAULT = AI-authored, retrieval-only**
+Two ways to make extraction fields; the authored way is the default and the annotator
+is the fallback/recall-seed:
+- **DEFAULT — author them (LLM reads each criterion).** For each criterion emit the
+  *decision variables a reviewer must pull* — e.g. a scanner criterion → CT Scanner Type,
+  Collimation Value, Rotational Speed, Number of Slices; an indication list → one
+  fetch-field per condition. **HARD RULE ([[extraction-fields-no-reasoning]]): a field is
+  pure "go get and find" — NO threshold/rule value, NO judgment word (qualifies, abnormal,
+  significant, suspicion…), NO conditional (if/when/whether). All logic stays in the
+  criterion.** The batch workflow's author agent writes `<LCD>_extraction_authored.json`
+  ({ "fields": { "code::n": [{label,description,tag}] } }); tags come from the platform's
+  fixed vocabulary (Medical Record, Diagnostic Test Result, Physician Written Order, Labs, …).
+  `build_tennr_order_type_json.py --authored-fields` consumes it, and close_loop auto-uses
+  it when the file is present. Run standalone via the `imaging_criteria_author_extraction`
+  batch workflow.
+- **FALLBACK — `build_extraction_fields.py` (UMLS atoms).** Detects clinical concepts
+  (BioPortal annotator), builds each field's recall set from **UMLS atoms** (+ ICD),
+  writes a "represented in a variety of ways: …" directive. Concept-recall only — it
+  finds nouns, not decision variables — so it feeds the review list and seeds recall, but
+  the authored fields are what ship. Needs `requests` → `$PY`.
 ```
 $PY scripts/build_extraction_fields.py $OUT/<LCD>_criteria.resolved.json --out $OUT/<LCD>_extraction_fields.csv
 ```

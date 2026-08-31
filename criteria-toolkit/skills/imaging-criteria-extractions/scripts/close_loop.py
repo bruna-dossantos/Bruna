@@ -234,6 +234,21 @@ def main(argv=None):
                  "--locations", str(out / f"{lcd}_rule_locations.json"), "--pdf"] + args.pdfs
                 + ["--title", lcd, "--out", str(out / f"{lcd}_criteria_explorer.html")], sys.executable)
         run([str(HERE / "build_machine_copy.py"), cj, "--codes", args.codes, "--out-dir", str(out)], sys.executable)
+        # Tennr platform-ingest JSON. DEFAULT to the AI-authored retrieval-only extraction
+        # fields ({lcd}_extraction_authored.json) when present; the annotator CSV is only a
+        # fallback recall seed. (See the imaging_criteria_author_extraction workflow.)
+        tennr_cmd = [str(HERE / "build_tennr_order_type_json.py"), cj,
+                     "--extraction", str(out / f"{lcd}_extraction_fields.csv"),
+                     "--codes", args.codes,
+                     "--out", str(out / f"{lcd}_tennr_order_types.json")]
+        authored = out / f"{lcd}_extraction_authored.json"
+        if authored.exists():
+            tennr_cmd += ["--authored-fields", str(authored)]
+        else:
+            print(f"NOTE: {authored.name} not found — Tennr JSON is using the weaker annotator "
+                  f"extraction fields. Run the imaging_criteria_author_extraction step for "
+                  f"retrieval-only decision-variable fields.", file=sys.stderr)
+        run(tennr_cmd, sys.executable)
         print("downstream regenerated.", file=sys.stderr)
 
     if args.organize:

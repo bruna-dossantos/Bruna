@@ -63,6 +63,7 @@ SUFFIX_MAP = [
     ("_group1_dx_codes.csv", MACHINE),
     ("_group1_dx_codes.json", MACHINE),
     ("_group1_dx_codes.txt", MACHINE),
+    ("_dx_codes.csv", WORKING),
 ]
 
 

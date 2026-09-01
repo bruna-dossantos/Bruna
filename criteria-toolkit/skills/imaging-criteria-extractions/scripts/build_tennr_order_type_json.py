@@ -68,10 +68,11 @@ def crit_obj(cr, ext_by, code, modality, prefer_grounded=True, dx_codes=None, au
     tag = [{"name": tag_for(cr.get("type"))}]
     fields = []
     akey = f"{code}::{cr.get('n')}"
-    if authored and akey in authored:
-        # AI-authored decision-variable fields: the specific documentation elements a
-        # reviewer must pull to evaluate this criterion (validate tags against the vocab)
-        for x in authored[akey]:
+    if authored is not None:
+        # authored map is the source of truth. AI-authored decision-variable fields are
+        # retrieval-only; a criterion missing from the map gets the neutral synth stub below
+        # — never the annotator CSV (which carries banned synonym words like "abnormal").
+        for x in authored.get(akey, []):
             t = x.get("tag") if x.get("tag") in VALID_TAGS else tag_for(cr.get("type"))
             fields.append({"label": x.get("label", ""), "description": x.get("description", ""), "tags": [{"name": t}]})
     else:
@@ -79,12 +80,13 @@ def crit_obj(cr, ext_by, code, modality, prefer_grounded=True, dx_codes=None, au
         grounded = [f for f in raw if f.get("_g")]
         chosen = (grounded if (prefer_grounded and grounded) else raw)
         fields = [{"label": f["label"], "description": f["description"], "tags": tag} for f in chosen]
-    # every clinical criterion must have >=1 extraction field: neutral retrieval-only
-    # fallback keyed on the criterion's topic (never inline the definition/thresholds)
+    # every clinical criterion must have >=1 extraction field: neutral retrieval-only stub.
+    # Deliberately generic (no criterion title) so no threshold/judgment word can leak in via
+    # the title; the parent criterion supplies the context.
     if not fields:
         fields = [{
-            "label": cr.get("title", "") or "Supporting documentation",
-            "description": "Find documentation in the medical record related to " + (cr.get("title", "") or "this requirement") + ".",
+            "label": "Supporting documentation",
+            "description": "Find documentation in the medical record relevant to this requirement.",
             "tags": tag,
         }]
     o["extractionFields"] = fields

@@ -16,7 +16,7 @@ _Last mapped: 2026-08-13._
 | insurance-ticket-sync | `criteria-toolkit/skills/` | ✅ | yes (criteria-toolkit) |
 | reconcile-order-rules | `criteria-toolkit/skills/` | ✅ | yes (criteria-toolkit) |
 | refresh-insurance-issues | `criteria-toolkit/skills/` | ✅ | yes (criteria-toolkit) |
-| imaging-criteria-extractions | `criteria-toolkit/skills/` | ✅ (rescued 2026-08-13) | not yet |
+| full-criteria-factory | `criteria-toolkit/skills/` | ✅ (rescued 2026-08-13) | not yet |
 
 ## The two skill folders (why it feels split)
 - **`skills/`** — the EA/ops skills.

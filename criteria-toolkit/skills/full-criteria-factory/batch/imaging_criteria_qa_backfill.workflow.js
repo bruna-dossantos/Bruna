@@ -1,6 +1,6 @@
 export const meta = {
   name: 'imaging-criteria-qa-backfill',
-  description: 'Backfill independent QA for finished imaging-criteria run folders that missed their QA verdict (transient failures), then regenerate one master batch dashboard across ALL run folders in the root.',
+  description: 'Backfill independent QA for finished criteria run folders that missed their QA verdict (transient failures), then regenerate one master batch dashboard across ALL run folders in the root.',
   phases: [
     { title: 'QA', detail: 'independent skeptic verifies each named run folder', model: 'opus' },
     { title: 'Dashboard', detail: 'roll up a master dashboard across every run folder', model: 'haiku' },
@@ -45,7 +45,7 @@ log(`backfilled QA for ${rows.length}/${TARGETS.length} policies`)
 
 phase('Dashboard')
 const dash = await agent(
-  `Regenerate the MASTER batch dashboard for this imaging-criteria batch. Write "${ROOT}/_BATCH_SUMMARY.md" and a self-contained "${ROOT}/_BATCH_SUMMARY.html".
+  `Regenerate the MASTER batch dashboard for this criteria batch. Write "${ROOT}/_BATCH_SUMMARY.md" and a self-contained "${ROOT}/_BATCH_SUMMARY.html".
 STEP 1: list every organized run folder directly under "${ROOT}" (folders whose name ends in "(L…)"). There should be ~22.
 STEP 2: for EACH run folder, read "3 - Checks/<LCD>_close_loop_report.md" for the Converged line + NEEDS REVIEW counts, and note whether "4 - Human Outputs/<LCD>_criteria_explorer.html" exists and whether "5 - Machine Outputs/" has the PLATFORM.json.
 STEP 3: fold in these freshly-backfilled QA verdicts (match by LCD):

@@ -1,15 +1,18 @@
 ---
-name: imaging-criteria-extractions
+name: full-criteria-factory
 description: >
-  End-to-end pipeline to turn an imaging/testing policy (Medicare LCD/NCD +
-  companion article, or a payer CPB) into Tennr qualification criteria AND the
-  extraction fields that evaluate them — order types, operational definitions for
-  vague terms, UMLS-atom recall sets, a Tennr-format criteria doc/PDF, a coverage
-  check, a click-through traceability HTML, a platform JSON with big code sets
-  inlined, and a find→fix→re-check loop. Use when Bruna says "run the imaging
-  criteria flow", "build imaging criteria and extractions", "generate extraction
-  fields for this policy", or drops an imaging/testing LCD/policy. Imaging/testing
-  (CT, MRI, DXA, molecular) — NOT DME/infusion.
+  End-to-end factory that turns a coverage policy (Medicare LCD/NCD + companion
+  article, or a payer CPB/medical policy) into Tennr qualification criteria AND the
+  extraction fields that evaluate them — rule inventory, order types, operational
+  definitions for vague terms, UMLS-atom recall sets, a Tennr-format criteria
+  doc/PDF, a coverage check, click-through traceability HTML, the platform + Tennr
+  order-type JSON (code sets inlined), an SME accept pass, and a find→fix→re-check
+  loop; runs one policy or a whole batch. Use when Bruna says "run the criteria
+  factory", "run the criteria flow", "build criteria and extractions", "generate
+  extraction fields for this policy", or drops a coverage policy/LCD. Scope note:
+  the criteria-authoring rules are currently tuned and validated for imaging/testing
+  (CT, MRI, DXA, ultrasound, vascular, molecular); DME and infusion have their own
+  criteria-writer skills.
 ---
 
 # Imaging Criteria + Extractions — full pipeline

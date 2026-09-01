@@ -11,7 +11,7 @@ One canonical source per skill, organized by family. Runtime discovery is via sy
 | communications | slack-reply-triage | repo (was `skills/`) | ✅ `.claude/skills` symlink |
 | qualification | criteria-writer | copied 2026-08-14 from `~/Claude/skills/criteria-writer` | source only |
 | qualification | criteria-writer-imaging | copied 2026-08-14 from `~/Claude/skills/criteria-writer-imaging` | source only |
-| qualification | imaging-criteria-extractions | repo `criteria-toolkit/skills/` (left in place — heavy venv) | ✅ `.claude/skills` symlink |
+| qualification | full-criteria-factory | repo `criteria-toolkit/skills/` (left in place — heavy venv) | ✅ `.claude/skills` symlink |
 | linear | insurance-ticket-sync | repo (was `criteria-toolkit/skills/`) | source only |
 | linear | refresh-insurance-issues | repo (was `criteria-toolkit/skills/`) | source only |
 | linear | reconcile-order-rules | repo (was `criteria-toolkit/skills/`) | source only |
@@ -23,5 +23,5 @@ One canonical source per skill, organized by family. Runtime discovery is via sy
 
 ## Known follow-ups
 - **`criteria-reuse-finder`** (`~/Claude/skills/`) was renamed from `payer-document-matcher` and rewritten on 2026-08-14 and was being actively edited by another live session during this migration — deliberately NOT copied in yet. Bring it in once stable.
-- **imaging-criteria-extractions** still lives under `criteria-toolkit/skills/` (its `.venv` is heavy and gitignored). Fold into `skills/qualification/` in a later, quiet pass; its `.claude/skills` symlink already points at the current location.
+- **full-criteria-factory** still lives under `criteria-toolkit/skills/` (its `.venv` is heavy and gitignored). Fold into `skills/qualification/` in a later, quiet pass; its `.claude/skills` symlink already points at the current location.
 - The **matcher** family is copied verbatim; the plan calls for merging it with payer/Linear matchers into one matcher architecture with named adapters — that's a design task, not done here.

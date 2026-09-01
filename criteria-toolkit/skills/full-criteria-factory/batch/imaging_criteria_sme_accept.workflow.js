@@ -1,6 +1,6 @@
 export const meta = {
   name: 'imaging-criteria-sme-accept',
-  description: 'Healthcare-SME accept/reject pass over finished imaging-criteria run folders: review operational definitions, auto-accepted coverage gaps, and the extraction review worklist; record accept/reject; and flag any clinical detail that belongs IN a criterion (promote-to-criteria). Writes a decisions file per policy.',
+  description: 'Healthcare-SME accept/reject pass over finished criteria run folders: review operational definitions, auto-accepted coverage gaps, and the extraction review worklist; record accept/reject; and flag any clinical detail that belongs IN a criterion (promote-to-criteria). Writes a decisions file per policy.',
   phases: [
     { title: 'SME Review', detail: 'per policy: an SME agent accepts/rejects opdefs + gaps + extraction rows and flags promote-to-criteria', model: 'opus' },
   ],

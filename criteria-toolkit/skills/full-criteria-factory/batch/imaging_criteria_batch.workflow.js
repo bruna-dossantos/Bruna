@@ -1,6 +1,6 @@
 export const meta = {
   name: 'imaging-criteria-batch',
-  description: 'Generate Tennr imaging criteria across many policies at once: per policy author criteria + resolutions (Opus), run the deterministic downstream to a finished draft package, verify independently (Opus), then a batch dashboard.',
+  description: 'Generate Tennr criteria across many policies at once: per policy author criteria + resolutions (Opus), run the deterministic downstream to a finished draft package, verify independently (Opus), then a batch dashboard.',
   phases: [
     { title: 'Author', detail: 'per policy: extract text, author criteria.json + resolutions in Tennr format, run close_loop --best-effort --render --organize', model: 'opus' },
     { title: 'QA', detail: 'independent skeptic verifies each finished run', model: 'opus' },
@@ -9,7 +9,7 @@ export const meta = {
 }
 
 // ---- config (paths are absolute; args supplies the work-list) ----
-const SKILL = '/Users/brunadossantos/Claude/os/criteria-toolkit/skills/imaging-criteria-extractions'
+const SKILL = '/Users/brunadossantos/Claude/os/criteria-toolkit/skills/full-criteria-factory'
 const PYV = SKILL + '/.venv/bin/python'   // venv: docx/pdf/pdfplumber
 const ROOT = args.root                     // batch output root dir
 const POLICIES = args.policies || []       // [{lcd,title,payer,ncd_baseline,article,service_line,plan_category,theme,codes:[...],pdfs:[...],codes_csv?}]
@@ -51,7 +51,7 @@ function authorPrompt(p) {
   const out = `${ROOT}/${p.lcd}_flat`
   const rulePdfs = [p.lcd_pdf, ...(p.ncd_pdfs || [])].filter(Boolean)
   const kind = p.codes_kind || 'covered'   // 'covered' | 'noncovered' (negative policy)
-  return `You are authoring Tennr imaging qualification criteria for ONE Medicare policy, then running the deterministic downstream to a finished draft package. Work headlessly; do not ask questions.
+  return `You are authoring Tennr qualification criteria for ONE Medicare policy, then running the deterministic downstream to a finished draft package. Work headlessly; do not ask questions.
 
 POLICY: ${p.lcd} — ${p.title || ''}
 Payer: ${p.payer || 'Medicare'} | NCD baseline: ${p.ncd_baseline || 'none'} | Article: ${p.article || 'none'}

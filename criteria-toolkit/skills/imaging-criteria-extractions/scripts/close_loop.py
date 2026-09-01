@@ -212,11 +212,20 @@ def main(argv=None):
         subprocess.run([sys.executable, str(HERE / "render_criteria_doc.py"), cj],
                        check=True, stdout=open(out / f"{lcd}_criteria_by_code.md", "w"))
         run([str(HERE / "build_extraction_fields.py"), cj, "--out", str(out / f"{lcd}_extraction_fields.csv")], sys.executable)
+        # ontology-grounding review/accept surface: bucket every recall concept by how much
+        # human review it needs (must_author / ungrounded / fuzzy_icd / grounded_ok).
+        run([str(HERE / "build_extraction_review.py"), str(out / f"{lcd}_extraction_fields.csv"),
+             "--out-md", str(out / f"{lcd}_extraction_review.md"),
+             "--out-csv", str(out / f"{lcd}_extraction_review.csv")], sys.executable)
         run([str(HERE / "render_extractions_doc.py"), str(out / f"{lcd}_extraction_fields.csv"),
              "--out-md", str(out / f"{lcd}_extraction_fields_by_code.md"),
              "--out-docx", str(out / f"{lcd}_extraction_fields_by_code.docx")], args.pyv)
         run([str(HERE / "build_traceability.py"), args.inventory, cj, "--out", str(out / f"{lcd}_traceability.json")], sys.executable)
         if args.pdfs:
+            # locate rules in the source PDFs FIRST — both HTML renderers require
+            # {lcd}_rule_locations.json, and nothing else generates it. Needs pdfplumber (pyv).
+            run([str(HERE / "locate_rules_in_pdf.py"), args.inventory,
+                 "--pdf"] + args.pdfs + ["--out", str(out / f"{lcd}_rule_locations.json")], args.pyv)
             run([str(HERE / "render_traceability_html.py"), str(out / f"{lcd}_traceability.json"),
                  "--locations", str(out / f"{lcd}_rule_locations.json"), "--pdf"] + args.pdfs
                 + ["--title", lcd, "--out", str(out / f"{lcd}_traceability.html")], sys.executable)
@@ -225,6 +234,21 @@ def main(argv=None):
                  "--locations", str(out / f"{lcd}_rule_locations.json"), "--pdf"] + args.pdfs
                 + ["--title", lcd, "--out", str(out / f"{lcd}_criteria_explorer.html")], sys.executable)
         run([str(HERE / "build_machine_copy.py"), cj, "--codes", args.codes, "--out-dir", str(out)], sys.executable)
+        # Tennr platform-ingest JSON. DEFAULT to the AI-authored retrieval-only extraction
+        # fields ({lcd}_extraction_authored.json) when present; the annotator CSV is only a
+        # fallback recall seed. (See the imaging_criteria_author_extraction workflow.)
+        tennr_cmd = [str(HERE / "build_tennr_order_type_json.py"), cj,
+                     "--extraction", str(out / f"{lcd}_extraction_fields.csv"),
+                     "--codes", args.codes,
+                     "--out", str(out / f"{lcd}_tennr_order_types.json")]
+        authored = out / f"{lcd}_extraction_authored.json"
+        if authored.exists():
+            tennr_cmd += ["--authored-fields", str(authored)]
+        else:
+            print(f"NOTE: {authored.name} not found — Tennr JSON is using the weaker annotator "
+                  f"extraction fields. Run the imaging_criteria_author_extraction step for "
+                  f"retrieval-only decision-variable fields.", file=sys.stderr)
+        run(tennr_cmd, sys.executable)
         print("downstream regenerated.", file=sys.stderr)
 
     if args.organize:

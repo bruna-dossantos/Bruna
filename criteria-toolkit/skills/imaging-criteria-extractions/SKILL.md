@@ -25,6 +25,7 @@ downstream steps and drives find → fix → re-check to convergence.
 - `<LCD>_resolutions.json` + `<LCD>_resolver_report.md` — operational definitions
 - `<LCD>_criteria_by_code.md/.docx/.pdf` — Tennr-format criteria doc (PDF = give to Tennr)
 - `<LCD>_extraction_fields.csv` + `<LCD>_extraction_fields_by_code.md/.docx` — extraction fields
+- `<LCD>_extraction_review.md/.csv` — recall-concept accept/reject worklist (buckets: must_author / ungrounded / fuzzy_icd / grounded_ok)
 - `<LCD>_coverage_gaps.md` — criteria-vs-inventory gaps
 - `<LCD>_traceability.html` — rule-first explorer (policy→rules→criteria)
 - `<LCD>_criteria_explorer.html` — pathway-first explorer (pathway→criteria→click→policy; policy vs clinical split)
@@ -59,6 +60,16 @@ level up (it spans all policies), not inside a run folder.
 - **Generation is a loop, not one pass** — list rules first, cover them, check back,
   regenerate. The evaluator is strict + per-criterion + missing→FALSE, so criteria
   must be self-contained with explicit pass-throughs. ([[criteria-evaluator]])
+- **Tennr left-side format** — write each criterion as a declarative requirement with
+  explicit numbered AND/OR sub-items, never a run-on sentence:
+  `The patient's medical records must document at least one of the following (1 or 2 or 3):`
+  then `1. … 2. … 3. …` (use "all of the following" for AND). Write absolute exclusions
+  as gates — `The patient does NOT have any of the following: 1. … 2. …` (evaluates TRUE
+  when none present, so no extra pass-through). A criterion that only applies in some
+  cases ends with a plain scoping sentence that doubles as the evaluator pass-through:
+  `This requirement applies only when …; otherwise this criterion is considered met.`
+  Always "patient" (never member/beneficiary); notes inline, never parenthetical.
+  (See the `criteria-writer-imaging` quality-rules + [[criteria-evaluator]].)
 
 ## Setup (once)
 - **API keys** present: `~/Claude/Projects/Credentials/umls_api_key.txt`
@@ -141,15 +152,38 @@ $PYV scripts/render_criteria_pdf.py  $OUT/<LCD>_criteria.resolved.json --out $OU
 ```
 docx/pdf need `$PYV`. Tennr house format: banners, □ checklist, policy-quote callouts, appendix.
 
-## Step 5 — `build_extraction_fields.py` · extraction fields (UMLS atoms)
-Per criterion: detects clinical concepts (BioPortal annotator), builds each field's
-recall set from **UMLS atoms** (+ ICD from atoms), writes a "represented in a
-variety of ways: …" directive. Needs `requests` → `$PY`.
+## Step 5 — extraction fields · **DEFAULT = AI-authored, retrieval-only**
+Two ways to make extraction fields; the authored way is the default and the annotator
+is the fallback/recall-seed:
+- **DEFAULT — author them (LLM reads each criterion).** For each criterion emit the
+  *decision variables a reviewer must pull* — e.g. a scanner criterion → CT Scanner Type,
+  Collimation Value, Rotational Speed, Number of Slices; an indication list → one
+  fetch-field per condition. **HARD RULE ([[extraction-fields-no-reasoning]]): a field is
+  pure "go get and find" — NO threshold/rule value, NO judgment word (qualifies, abnormal,
+  significant, suspicion…), NO conditional (if/when/whether). All logic stays in the
+  criterion.** The batch workflow's author agent writes `<LCD>_extraction_authored.json`
+  ({ "fields": { "code::n": [{label,description,tag}] } }); tags come from the platform's
+  fixed vocabulary (Medical Record, Diagnostic Test Result, Physician Written Order, Labs, …).
+  `build_tennr_order_type_json.py --authored-fields` consumes it, and close_loop auto-uses
+  it when the file is present. Run standalone via the `imaging_criteria_author_extraction`
+  batch workflow.
+- **FALLBACK — `build_extraction_fields.py` (UMLS atoms).** Detects clinical concepts
+  (BioPortal annotator), builds each field's recall set from **UMLS atoms** (+ ICD),
+  writes a "represented in a variety of ways: …" directive. Concept-recall only — it
+  finds nouns, not decision variables — so it feeds the review list and seeds recall, but
+  the authored fields are what ship. Needs `requests` → `$PY`.
 ```
 $PY scripts/build_extraction_fields.py $OUT/<LCD>_criteria.resolved.json --out $OUT/<LCD>_extraction_fields.csv
 ```
 Helper — `expand_concepts.py` (shared): `validate` grounds model-proposed related
 concepts; `atoms` builds a synonym set; `test` gates recall/precision on labeled charts.
+**Review/accept surface:** right after this, close_loop (Step 10) runs
+`build_extraction_review.py` on the CSV to emit `<LCD>_extraction_review.md/.csv` — every
+recall concept bucketed by review need (`must_author` = no concept detected; `ungrounded`
+= detected but no UMLS CUI; `fuzzy_icd` = ICD from BioPortal fuzzy search, verify each;
+`grounded_ok` = UMLS-atom-grounded, lowest risk). Offline (reads the CSV); all fields stay
+reviewer PENDING. Needs a networked extraction run — the atom/annotator grounding is what
+populates the buckets. The recall/precision `test` gate still needs labeled charts.
 
 ## Step 6 — `render_extractions_doc.py` · companion doc
 Mirrors the criteria doc on the extraction side (code→order type→criterion→fields).

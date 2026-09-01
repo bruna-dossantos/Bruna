@@ -50,6 +50,12 @@ SUFFIX_MAP = [
     ("_coverage_gaps.md", CHECKS),
     ("_resolver_report.md", CHECKS),
     ("_ambiguous_terms.json", CHECKS),
+    ("_extraction_review.md", CHECKS),
+    ("_extraction_review.csv", CHECKS),
+    ("_sme_review.md", CHECKS),
+    ("_sme_review.json", CHECKS),
+    ("_sme_applied.md", CHECKS),
+    ("_tennr_order_types.json", MACHINE),
     ("_extraction_fields_by_code.docx", HUMAN),
     ("_extraction_fields_by_code.md", HUMAN),
     ("_extraction_fields_by_code.pdf", HUMAN),
@@ -57,6 +63,7 @@ SUFFIX_MAP = [
     ("_group1_dx_codes.csv", MACHINE),
     ("_group1_dx_codes.json", MACHINE),
     ("_group1_dx_codes.txt", MACHINE),
+    ("_dx_codes.csv", WORKING),
 ]
 
 

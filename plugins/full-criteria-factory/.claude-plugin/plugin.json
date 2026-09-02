@@ -1,0 +1,9 @@
+{
+  "name": "full-criteria-factory",
+  "description": "End-to-end factory that turns a coverage policy (Medicare LCD/NCD + article, or a payer medical policy) into Tennr qualification criteria plus the retrieval-only extraction fields that evaluate them: rule inventory, order types, operational definitions, UMLS/BioPortal-grounded recall sets, criteria doc/PDF, coverage check, traceability HTML, platform + Tennr order-type JSON, an SME accept pass, and a find/fix/re-check loop; one policy or a batch. Bundles its own UMLS/BioPortal clients and Python scripts. Criteria-authoring rules are tuned for imaging/testing today.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Bruna Dos Santos",
+    "email": "bruna@tennr.com"
+  }
+}

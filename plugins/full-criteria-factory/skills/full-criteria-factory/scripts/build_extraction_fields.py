@@ -32,7 +32,7 @@ import argparse
 from pathlib import Path
 
 # import the shared clients from criteria-toolkit/scripts
-_SCRIPTS = Path(__file__).resolve().parents[3] / "scripts"
+_SCRIPTS = Path(__file__).resolve().parent  # shared UMLS/BioPortal clients are bundled locally
 sys.path.insert(0, str(_SCRIPTS))
 from bioportal_client import BioPortalClient          # noqa: E402
 from expand_concepts import ConceptExpander           # noqa: E402

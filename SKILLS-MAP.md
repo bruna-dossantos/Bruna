@@ -16,7 +16,7 @@ _Last mapped: 2026-08-13._
 | insurance-ticket-sync | `criteria-toolkit/skills/` | ✅ | yes (criteria-toolkit) |
 | reconcile-order-rules | `criteria-toolkit/skills/` | ✅ | yes (criteria-toolkit) |
 | refresh-insurance-issues | `criteria-toolkit/skills/` | ✅ | yes (criteria-toolkit) |
-| full-criteria-factory | `criteria-toolkit/skills/` | ✅ (rescued 2026-08-13) | not yet |
+| full-criteria-factory | `plugins/full-criteria-factory/` | ✅ | yes — standalone plugin (self-contained; bundles UMLS/BioPortal clients + scripts; marketplace `bruna-criteria`) |
 
 ## The two skill folders (why it feels split)
 - **`skills/`** — the EA/ops skills.

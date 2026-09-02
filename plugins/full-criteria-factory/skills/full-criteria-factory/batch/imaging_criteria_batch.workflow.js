@@ -9,7 +9,7 @@ export const meta = {
 }
 
 // ---- config (paths are absolute; args supplies the work-list) ----
-const SKILL = '/Users/brunadossantos/Claude/os/criteria-toolkit/skills/full-criteria-factory'
+const SKILL = '/Users/brunadossantos/Claude/os/plugins/full-criteria-factory/skills/full-criteria-factory'
 const PYV = SKILL + '/.venv/bin/python'   // venv: docx/pdf/pdfplumber
 const ROOT = args.root                     // batch output root dir
 const POLICIES = args.policies || []       // [{lcd,title,payer,ncd_baseline,article,service_line,plan_category,theme,codes:[...],pdfs:[...],codes_csv?}]

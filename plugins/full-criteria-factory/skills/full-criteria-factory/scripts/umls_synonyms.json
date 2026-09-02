@@ -1,0 +1,10 @@
+{
+  "_comment": "Optional overrides merged OVER the built-in maps in umls_client.py. 'synonyms' maps a policy term (lowercase) to alternate lookup phrasings tried in order until one has a UMLS definition. 'manual' provides a last-resort plain-language gloss for terms UMLS never defines; these show as source 'manual'. Add your own entries here.",
+  "synonyms": {
+    "dyspnea": ["shortness of breath"],
+    "sob": ["shortness of breath"],
+    "syncope": ["fainting"],
+    "paresthesia": ["paresthesias"]
+  },
+  "manual": {}
+}

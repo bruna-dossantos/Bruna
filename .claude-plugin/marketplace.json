@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "bruna-criteria",
+  "description": "Bruna's Tennr criteria tooling — the Full Criteria Factory and related qualification-criteria skills.",
+  "owner": {
+    "name": "Bruna Dos Santos",
+    "email": "bruna@tennr.com"
+  },
+  "plugins": [
+    {
+      "name": "full-criteria-factory",
+      "description": "Turn a coverage policy into Tennr qualification criteria + retrieval-only extraction fields, end to end (one policy or a batch). Bundles its UMLS/BioPortal clients and Python scripts.",
+      "author": { "name": "Bruna Dos Santos", "email": "bruna@tennr.com" },
+      "category": "healthcare",
+      "source": "./plugins/full-criteria-factory"
+    }
+  ]
+}

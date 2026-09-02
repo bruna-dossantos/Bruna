@@ -72,18 +72,25 @@ level up (it spans all policies), not inside a run folder.
   cases ends with a plain scoping sentence that doubles as the evaluator pass-through:
   `This requirement applies only when …; otherwise this criterion is considered met.`
   Always "patient" (never member/beneficiary); notes inline, never parenthetical.
-  (See the `criteria-writer-imaging` quality-rules + [[criteria-evaluator]].)
+  (See the bundled `authoring-rules/quality-rules.md` + [[criteria-evaluator]].)
 
-## Setup (once)
-- **API keys** present: `~/Claude/Projects/Credentials/umls_api_key.txt`
-  and `BioPortal_API.txt`. ([[umls-term-glossing]])
-- **venv** (for docx/pdf/pdfplumber steps): `python3 -m venv .venv && .venv/bin/pip
-  install -r requirements.txt` (already created; gitignored).
+## Setup (once per install)
+- **venv** (for the docx/pdf/pdfplumber steps): run **`bash setup.sh`** from the skill
+  directory — it creates `.venv` and installs `requirements.txt`. (`.venv` is gitignored and
+  machine-specific, so it must be built on each machine.)
+- **API keys** for UMLS + BioPortal: read from `~/Claude/Projects/Credentials/`
+  (`umls_api_key.txt`, `BioPortal_API.txt`) or the env vars `UMLS_API_KEY` / `BIOPORTAL_API_KEY`.
+  ([[umls-term-glossing]])
 - **Two interpreters** — matters per step:
   - `PY=python3` — stdlib steps + API steps (UMLS/BioPortal via stdlib `urllib`; no pip deps).
   - `PYV=.venv/bin/python` — needs python-docx / reportlab / pdfplumber (see `requirements.txt`).
-- **Shared clients** in `criteria-toolkit/scripts/` (`umls_client.py`,
-  `bioportal_client.py`, `expand_concepts.py`, `umls_synonyms.json`); skill scripts import them.
+- **Shared clients are bundled** in this skill's own `scripts/` (`umls_client.py`,
+  `bioportal_client.py`, `expand_concepts.py`, `umls_synonyms.json`) — the plugin is
+  self-contained, no external dependency.
+- **Authoring rules are bundled** in `authoring-rules/` (`quality-rules.md`,
+  `classification-rules.md`, `review-checklist.md`) — the Tennr left-side format rules Step 1 uses.
+- **Portable paths:** the batch workflow resolves the skill root from `args.skill_root`, then
+  `$CLAUDE_PLUGIN_ROOT`, then a repo dev fallback — no user-specific absolute path required.
 - Set `SRC` = extracted policy `.txt`s, `PDFS` = source PDFs, `CODES` = canonical dx CSV,
   `OUT` = `~/Claude/Projects/Criteria Updates/Imaging Vertical/<LCD> …/`.
 

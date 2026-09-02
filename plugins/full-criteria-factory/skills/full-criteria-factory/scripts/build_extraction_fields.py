@@ -31,8 +31,8 @@ import json
 import argparse
 from pathlib import Path
 
-# import the shared clients from criteria-toolkit/scripts
-_SCRIPTS = Path(__file__).resolve().parent  # shared UMLS/BioPortal clients are bundled locally
+# import the shared UMLS/BioPortal clients — bundled locally in this skill's scripts/
+_SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPTS))
 from bioportal_client import BioPortalClient          # noqa: E402
 from expand_concepts import ConceptExpander           # noqa: E402

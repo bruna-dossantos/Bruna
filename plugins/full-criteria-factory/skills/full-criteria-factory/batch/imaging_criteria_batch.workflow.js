@@ -9,8 +9,12 @@ export const meta = {
 }
 
 // ---- config (paths are absolute; args supplies the work-list) ----
-const SKILL = '/Users/brunadossantos/Claude/os/plugins/full-criteria-factory/skills/full-criteria-factory'
-const PYV = SKILL + '/.venv/bin/python'   // venv: docx/pdf/pdfplumber
+// Resolve the skill root portably: explicit arg > installed-plugin env var > repo dev fallback.
+const PLUGIN_ROOT = (typeof process !== 'undefined' && process.env && process.env.CLAUDE_PLUGIN_ROOT) || ''
+const SKILL = args.skill_root
+  || (PLUGIN_ROOT ? `${PLUGIN_ROOT}/skills/full-criteria-factory` : '')
+  || '/Users/brunadossantos/Claude/os/plugins/full-criteria-factory/skills/full-criteria-factory'
+const PYV = SKILL + '/.venv/bin/python'   // venv: docx/pdf/pdfplumber (run setup.sh once per install)
 const ROOT = args.root                     // batch output root dir
 const POLICIES = args.policies || []       // [{lcd,title,payer,ncd_baseline,article,service_line,plan_category,theme,codes:[...],pdfs:[...],codes_csv?}]
 
@@ -63,7 +67,7 @@ Flat working dir (create it): ${out}
 
 READ FIRST (the format + schema you must follow):
 - ${SKILL}/SKILL.md  (esp. "Interchange format", "Core principles" incl. the Tennr left-side format, and Steps 0/2/3/10)
-- /Users/brunadossantos/Claude/os/skills/qualification/criteria-writer-imaging/quality-rules.md  (the canonical left-side rules — READ THIS; it defines exclusions-as-gates, no-parentheticals, numbered AND/OR, patient terminology)
+- ${SKILL}/authoring-rules/quality-rules.md  (the canonical left-side rules — READ THIS; it defines exclusions-as-gates, no-parentheticals, numbered AND/OR, patient terminology)
 - ${SKILL}/examples/  (real criteria.json shapes)
 
 STEPS (run from ${SKILL}; $PYV = ${PYV}, $PY = python3):
